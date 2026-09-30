@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Communauté - Gestion Complète</title>
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --secondary: #34495e;
+            --accent: #e74c3c;
+            --success: #27ae60;
+            --bg: #f4f7f6;
+            --card: #ffffff;
+            --text: #333;
+            --meta: #7f8c8d;
+        }
+
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; color: var(--text); }
+        
+        /* --- UTILS --- */
+        .hidden { display: none !important; }
+        .btn { padding: 10px 15px; border: none; border-radius: 5px; cursor: pointer; font-size: 0.9rem; transition: 0.2s; }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-danger { background: var(--accent); color: white; }
+        .btn-success { background: var(--success); color: white; }
+        .btn:hover { opacity: 0.9; }
+        .btn-sm { padding: 5px 10px; font-size: 0.8rem; }
+
+        /* --- LOGIN --- */
+        #login-screen { display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 20px; }
+        .login-box { background: var(--card); padding: 2rem; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 450px; text-align: center; }
+        h1, h2, h3 { color: var(--primary); margin-top: 0; }
+        
+        .input-group { margin-bottom: 15px; text-align: left; }
+        .input-wrapper { position: relative; display: flex; align-items: center; }
+        input, select, textarea { width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 5px; box-sizing: border-box; font-size: 1rem; }
+        input[readonly] { background: #f8f9fa; cursor: pointer; }
+        .scan-btn { position: absolute; right: 5px; top: 50%; transform: translateY(-50%); background: var(--primary); color: white; border: none; width: 35px; height: 35px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        
+        /* --- DASHBOARD --- */
+        #admin-screen { display: none; max-width: 1000px; margin: 20px auto; padding: 20px; }
+        .dashboard-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; background: var(--card); padding: 20px; border-radius: 10px; }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 20px; }
+        .stat-card { background: var(--card); padding: 20px; border-radius: 10px; text-align: center; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .stat-number { font-size: 2rem; font-weight: bold; color: var(--primary); }
+        
+        .admin-section { background: var(--card); padding: 20px; border-radius: 10px; margin-bottom: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .section-title { border-bottom: 2px solid var(--bg); padding-bottom: 10px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; }
+        
+        /* Tables & Lists */
+        .data-list { list-style: none; padding: 0; margin: 0; }
+        .data-item { display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid #eee; }
+        .data-item:last-child { border-bottom: none; }
+        .data-info { flex-grow: 1; }
+        .data-name { font-weight: bold; display: block; }
+        .data-meta { font-size: 0.85rem; color: var(--meta); }
+
+        /* Customization Preview */
+        .color-preview { width: 30px; height: 30px; border-radius: 50%; display: inline-block; vertical-align: middle; margin-left: 10px; border: 1px solid #ddd; }
+
+        /* Modal Camera */
+        #camera-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 1000; flex-direction: column; justify-content: center; align-items: center; }
+        #reader { width: 100%; max-width: 500px; background: white; border-radius: 10px; }
+        .close-cam { margin-top: 20px; background: var(--accent); color: white; border: none; padding: 10px 20px; border-radius: 30px; cursor: pointer; }
+
+        /* App Screen (User) */
+        #app-screen { display: none; max-width: 800px; margin: 0 auto; padding: 20px; }
+        .nav-tabs { display: flex; gap: 10px; margin-bottom: 20px; overflow-x: auto; }
+        .nav-btn { flex: 1; background: var(--card); border: 1px solid #ddd; padding: 10px; border-radius: 30px; cursor: pointer; }
+        .nav-btn.active { background: var(--primary); color: white; }
+        .feed-item { background: var(--card); padding: 20px; border-radius: 10px; margin-bottom: 20px; }
+        .post-img { width: 100%; border-radius: 5px; }
+        .post-quote { font-style: italic; background: #f9f9f9; padding: 15px; border-left: 4px solid var(--primary); }
+    </style>
+</head>
+<body>
+
+    <!-- LOGIN SCREEN -->
+    <div id="login-screen">
+        <div class="login-box">
+            <h1 id="site-title-login">Accès Communauté</h1>
+            <div id="login-error" class="alert-error" style="color:red; display:none; margin-bottom:10px;"></div>
+            <form id="login-form">
+                <div class="input-group">
+                    <label>Identifiant</label>
+                    <div class="input-wrapper">
+                        <input type="text" id="barcode" placeholder="Scan ou ID" readonly>
+                        <button type="button" class="scan-btn" onclick="startCamera()">📷</button>
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label>Mot de passe</label>
+                    <input type="password" id="password" placeholder="Mot de passe" disabled>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width:100%" disabled id="btn-login">Se connecter</button>
+            </form>
+            <p style="font-size:0.8rem; color:#999; margin-top:15px;">
+                Admin: <code>admin</code> / <code>admin123</code><br>
+                User: <code>123456</code> / <code>admin</code>
+            </p>
+        </div>
+    </div>
+
+    <!-- CAMERA MODAL -->
+    <div id="camera-modal">
+        <div id="reader"></div>
+        <button class="close-cam" onclick="stopCamera()">Fermer</button>
+    </div>
+
+    <!-- ADMIN DASHBOARD -->
+    <div id="admin-screen">
+        <div class="dashboard-header">
+            <div>
+                <h2>🛠️ Administration</h2>
+                <span style="color:var(--meta)">Gérez votre communauté facilement</span>
+            </div>
+            <button class="btn btn-danger" onclick="logout()">Déconnexion</button>
+        </div>
+
+        <!-- Stats -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-number" id="stat-users">0</div>
+                <div>Utilisateurs</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="stat-posts">0</div>
+                <div>Publications</div>
+            </div>
+        </div>
+
+        <!-- Gestion Utilisateurs -->
+        <div class="admin-section">
+            <div class="section-title">
+                <h3>👥 Utilisateurs</h3>
+                <button class="btn btn-success btn-sm" onclick="showAddUserForm()">+ Ajouter</button>
+            </div>
+            
+            <div id="add-user-form" class="hidden" style="background:#f8f9fa; padding:15px; border-radius:5px; margin-bottom:15px;">
+                <div class="input-group"><input type="text" id="new-user-id" placeholder="Identifiant (ex: 007)"></div>
+                <div class="input-group"><input type="text" id="new-user-name" placeholder="Nom complet"></div>
+                <div class="input-group"><input type="text" id="new-user-pass" placeholder="Mot de passe"></div>
+                <button class="btn btn-primary btn-sm" onclick="addUser()">Enregistrer</button>
+                <button class="btn btn-sm" onclick="hideAddUserForm()">Annuler</button>
+            </div>
+
+            <ul class="data-list" id="users-list">
+                <!-- Rempli par JS -->
+            </ul>
+        </div>
+
+        <!-- Modération Publications -->
+        <div class="admin-section">
+            <div class="section-title">
+                <h3>📰 Publications</h3>
+            </div>
+            <ul class="data-list" id="posts-list">
+                <!-- Rempli par JS -->
+            </ul>
+        </div>
+
+        <!-- Personnalisation -->
+        <div class="admin-section">
+            <div class="section-title">
+                <h3>🎨 Apparence</h3>
+            </div>
+            <div class="input-group">
+                <label>Titre du site</label>
+                <input type="text" id="conf-site-title" oninput="saveConfig()">
+            </div>
+            <div class="input-group">
+                <label>Couleur Principale</label>
+                <input type="color" id="conf-color-primary" oninput="saveConfig()" style="height:50px; padding:5px;">
+            </div>
+            <div class="input-group">
+                <label>Couleur Secondaire (Boutons)</label>
+                <input type="color" id="conf-color-accent" oninput="saveConfig()" style="height:50px; padding:5px;">
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="resetConfig()">Réinitialiser le style</button>
+        </div>
+    </div>
+
+    <!-- USER APP SCREEN -->
+    <div id="app-screen">
+        <div class="dashboard-header" style="margin-bottom:10px;">
+            <h2 id="user-welcome">Bonjour</h2>
+            <button class="btn btn-danger" onclick="logout()">Déconnexion</button>
+        </div>
+        
+        <div class="nav-tabs">
+            <button class="nav-btn active" onclick="switchView('feed')">Flux</button>
+            <button class="nav-btn" onclick="switchView('publish')">Publier</button>
+        </div>
+
+        <div id="view-publish" class="hidden" style="background:var(--card); padding:20px; border-radius:10px; margin-bottom:20px;">
+            <h3>Nouveau Post</h3>
+            <select id="pub-type" class="input-group" style="margin-bottom:10px;">
+                <option value="photo">Photo</option>
+                <option value="quote">Citation</option>
+            </select>
+            <div id="field-photo"><input type="file" id="pub-file" accept="image/*" style="margin-bottom:10px;"><input type="text" id="pub-caption" placeholder="Légende"></div>
+            <div id="field-quote" class="hidden"><textarea id="pub-text" placeholder="Texte"></textarea><input type="text" id="pub-cited-id" placeholder="ID Auteur cité" style="margin-top:10px;"></div>
+            <button class="btn btn-primary" style="margin-top:10px;" onclick="submitPost()">Publier</button>
+        </div>
+
+        <div id="feed-container"></div>
+    </div>
+
+    <script>
+        // --- DONNÉES & CONFIG ---
+        const DEFAULT_USERS = {
+            "admin": { name: "Administrateur", password: "admin123", role: "admin" },
+            "123456": { name: "Alice Dupont", password: "admin", role: "user" },
+            "987654": { name: "Bob Martin", password: "secret", role: "user" }
+        };
+
+        const DEFAULT_CONFIG = {
+            title: "Ma Communauté",
+            primary: "#2c3e50",
+            accent: "#e74c3c"
+        };
+
+        // Chargement des données (LocalStorage ou Défaut)
+        function getData(key, defaultVal) {
+            const stored = localStorage.getItem(key);
+            return stored ? JSON.parse(stored) : defaultVal;
+        }
+
+        function saveData(key, data) {
+            localStorage.setItem(key, JSON.stringify(data));
+            refreshAdmin();
+        }
+
+        let users = getData('community_users', DEFAULT_USERS);
+        let posts = getData('community_posts', []);
+        let config = getData('community_config', DEFAULT_CONFIG);
+        let currentUser = null;
+
+        // Application de la config au démarrage
+        function applyConfig() {
+            document.documentElement.style.setProperty('--primary', config.primary);
+            document.documentElement.style.setProperty('--accent', config.accent);
+            document.getElementById('site-title-login').textContent = config.title;
+            
+            // Remplir les champs admin
+            document.getElementById('conf-site-title').value = config.title;
+            document.getElementById('conf-color-primary').value = config.primary;
+            document.getElementById('conf-color-accent').value = config.accent;
+        }
+
+        // --- LOGIN & CAMERA ---
+        let html5QrCode = null;
+        const barcodeInput = document.getElementById('barcode');
+        
+        document.getElementById('login-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const id = barcodeInput.value;
+            const pass = document.getElementById('password').value;
+            
+            if (users[id] && users[id].password === pass) {
+                currentUser = { id, ...users[id] };
+                if (currentUser.role === 'admin') {
+                    showAdmin();
+                } else {
+                    showApp();
+                }
+            } else {
+                const err = document.getElementById('login-error');
+                err.textContent = "Identifiant ou mot de passe incorrect";
+                err.style.display = 'block';
+            }
+        });
+
+        function startCamera() {
+            document.getElementById('camera-modal').style.display = 'flex';
+            html5QrCode = new Html5Qrcode("reader");
+            html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, (text) => {
+                stopCamera();
+                barcodeInput.value = text.replace(/[^a-zA-Z0-9]/g, '');
+                document.getElementById('password').disabled = false;
+                document.getElementById('btn-login').disabled = false;
+                document.getElementById('password').focus();
+            }).catch(err => console.error(err));
+        }
+
+        function stopCamera() {
+            if (html5QrCode) {
+                html5QrCode.stop().then(() => {
+                    document.getElementById('camera-modal').style.display = 'none';
+                });
+            }
+        }
+
+        // --- NAVIGATION ---
+        function showAdmin() {
+            document.getElementById('login-screen').style.display = 'none';
+            document.getElementById('app-screen').style.display = 'none';
+            document.getElementById('admin-screen').style.display = 'block';
+            refreshAdmin();
+        }
+
+        function showApp() {
+            document.getElementById('login-screen').style.display = 'none';
+            document.getElementById('admin-screen').style.display = 'none';
+            document.getElementById('app-screen').style.display = 'block';
+            document.getElementById('user-welcome').textContent = `Bonjour, ${currentUser.name}`;
+            renderFeed();
+        }
+
+        function logout() {
+            location.reload();
+        }
+
+        // --- ADMIN FUNCTIONS ---
+        function refreshAdmin() {
+            // Stats
+            document.getElementById('stat-users').textContent = Object.keys(users).length;
+            document.getElementById('stat-posts').textContent = posts.length;
+
+            // Liste Utilisateurs
+            const uList = document.getElementById('users-list');
+            uList.innerHTML = '';
+            for (const [id, u] of Object.entries(users)) {
+                const li = document.createElement('li');
+                li.className = 'data-item';
+                li.innerHTML = `
+                    <div class="data-info">
+                        <span class="data-name">${u.name} <small style="color:#999">(${id})</small></span>
+                        <span class="data-meta">Rôle: ${u.role || 'user'}</span>
+                    </div>
+                    ${id !== 'admin' ? `<button class="btn btn-danger btn-sm" onclick="deleteUser('${id}')">Supprimer</button>` : ''}
+                `;
+                uList.appendChild(li);
+            }
+
+            // Liste Posts
+            const pList = document.getElementById('posts-list');
+            pList.innerHTML = '';
+            posts.slice().reverse().forEach((p, index) => {
+                const li = document.createElement('li');
+                li.className = 'data-item';
+                const preview = p.type === 'photo' ? '📷 Photo' : '💬 Citation: ' + p.content.substring(0, 30) + '...';
+                li.innerHTML = `
+                    <div class="data-info">
+                        <span class="data-name">${p.authorName}</span>
+                        <span class="data-meta">${new Date(p.date).toLocaleDateString()} - ${preview}</span>
+                    </div>
+                    <button class="btn btn-danger btn-sm" onclick="deletePost(${index})">Supprimer</button>
+                `;
+                pList.appendChild(li);
+            });
+        }
+
+        function showAddUserForm() { document.getElementById('add-user-form').classList.remove('hidden'); }
+        function hideAddUserForm() { document.getElementById('add-user-form').classList.add('hidden'); }
+
+        function addUser() {
+            const id = document.getElementById('new-user-id').value.trim();
+            const name = document.getElementById('new-user-name').value.trim();
+            const pass = document.getElementById('new-user-pass').value.trim();
+
+            if (!id || !name || !pass) return alert("Tous les champs sont requis");
+            if (users[id]) return alert("Cet identifiant existe déjà");
+
+            users[id] = { name, password: pass, role: 'user' };
+            saveData('community_users', users);
+            hideAddUserForm();
+            document.getElementById('new-user-id').value = '';
+            document.getElementById('new-user-name').value = '';
+            document.getElementById('new-user-pass').value = '';
+            alert("Utilisateur ajouté !");
+        }
+
+        function deleteUser(id) {
+            if (confirm("Supprimer cet utilisateur ?")) {
+                delete users[id];
+                saveData('community_users', users);
+            }
+        }
+
+        function deletePost(index) {
+            if (confirm("Supprimer cette publication ?")) {
+                // L'index est inversé car on affiche en reverse, donc on recalcul l'index réel
+                const realIndex = posts.length - 1 - index;
+                posts.splice(realIndex, 1);
+                saveData('community_posts', posts);
+            }
+        }
+
+        function saveConfig() {
+            config.title = document.getElementById('conf-site-title').value;
+            config.primary = document.getElementById('conf-color-primary').value;
+            config.accent = document.getElementById('conf-color-accent').value;
+            saveData('community_config', config);
+            applyConfig();
+        }
+
+        function resetConfig() {
+            if(confirm("Réinitialiser les couleurs et le titre ?")) {
+                saveData('community_config', DEFAULT_CONFIG);
+                applyConfig();
+            }
+        }
+
+        // --- USER APP FUNCTIONS ---
+        function switchView(view) {
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            if (view === 'publish') {
+                document.getElementById('view-publish').classList.remove('hidden');
+                document.getElementById('feed-container').innerHTML = '';
+            } else {
+                document.getElementById('view-publish').classList.add('hidden');
+                renderFeed();
+            }
+        }
+
+        function submitPost() {
+            const type = document.getElementById('pub-type').value;
+            const newPost = {
+                id: Date.now(),
+                type,
+                authorName: currentUser.name,
+                date: new Date().toISOString(),
+                content: '',
+                caption: '',
+                citedName: null
+            };
+
+            if (type === 'photo') {
+                const file = document.getElementById('pub-file').files[0];
+                if (!file) return alert("Image requise");
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    newPost.content = e.target.result;
+                    newPost.caption = document.getElementById('pub-caption').value;
+                    finalizePost(newPost);
+                };
+                reader.readAsDataURL(file);
+            } else {
+                const text = document.getElementById('pub-text').value;
+                const citedId = document.getElementById('pub-cited-id').value.trim();
+                if (!text) return alert("Texte requis");
+                if (citedId && !users[citedId]) return alert("ID cité inexistant");
+                
+                newPost.content = text;
+                if (citedId) newPost.citedName = users[citedId].name;
+                finalizePost(newPost);
+            }
+        }
+
+        function finalizePost(post) {
+            posts.unshift(post);
+            saveData('community_posts', posts);
+            alert("Publié !");
+            document.getElementById('pub-text').value = '';
+            document.getElementById('pub-caption').value = '';
+            document.getElementById('pub-file').value = '';
+            switchView('feed');
+        }
+
+        function renderFeed() {
+            const container = document.getElementById('feed-container');
+            container.innerHTML = '';
+            if (posts.length === 0) {
+                container.innerHTML = '<div style="text-align:center; color:#999; padding:20px;">Aucun contenu.</div>';
+                return;
+            }
+            posts.forEach(p => {
+                const div = document.createElement('div');
+                div.className = 'feed-item';
+                let content = p.type === 'photo' 
+                    ? `<img src="${p.content}" class="post-img"><p>${p.caption}</p>`
+                    : `<div class="post-quote">"${p.content}"</div>${p.citedName ? `<small>Cité: ${p.citedName}</small>`:''}`;
+                
+                div.innerHTML = `<div style="display:flex; justify-content:space-between; margin-bottom:10px;"><strong>${p.authorName}</strong><small>${new Date(p.date).toLocaleDateString()}</small></div>${content}`;
+                container.appendChild(div);
+            });
+        }
+
+        // Init
+        applyConfig();
+    </script>
+</body>
+</html>
