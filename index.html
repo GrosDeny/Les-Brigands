@@ -3,191 +3,338 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Communauté Pro - Accès</title>
+    <title>Communauté Pro</title>
     <!-- Supabase JS -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Scanner Code Barres -->
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
     <style>
+        /* --- VARIABLES CSS DYNAMIQUES --- */
         :root {
             --primary: #2c3e50;
+            --secondary: #34495e;
             --accent: #e74c3c;
+            --success: #27ae60;
             --bg: #f4f7f6;
             --card: #ffffff;
-            --text: #333;
+            --text: #333333;
+            --layout-gap: 20px;
             --card-radius: 10px;
         }
 
-        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; color: var(--text); display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; color: var(--text); transition: background 0.3s, color 0.3s; }
         
-        .login-box { background: var(--card); padding: 2.5rem; border-radius: var(--card-radius); box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 100%; max-width: 420px; text-align: center; position: relative; }
-        
-        h2 { color: var(--primary); margin-top: 0; margin-bottom: 20px; }
-        
-        .input-group { margin-bottom: 20px; text-align: left; position: relative; }
-        label { display: block; margin-bottom: 8px; font-weight: 600; font-size: 0.9rem; color: #555; }
-        
-        input {
-            width: 100%;
-            padding: 14px 45px 14px 15px; /* Espace pour l'icône */
-            border: 2px solid #e0e0e0;
-            border-radius: 8px;
-            font-size: 1rem;
-            box-sizing: border-box;
-            transition: border-color 0.3s;
-        }
-        input:focus { outline: none; border-color: var(--primary); }
-        
-        /* Bouton Scan dans l'input */
-        .scan-btn {
-            position: absolute;
-            right: 10px;
-            top: 42px; /* Ajusté selon le label */
+        /* --- HEADER DYNAMIQUE --- */
+        .dynamic-header {
             background: var(--primary);
             color: white;
-            border: none;
-            width: 38px;
-            height: 38px;
-            border-radius: 50%;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.2rem;
-            transition: transform 0.2s, background 0.2s;
-            z-index: 10;
+            padding: 20px;
+            text-align: center;
+            background-size: cover;
+            background-position: center;
+            position: relative;
+            transition: background-image 0.3s, background-color 0.3s;
         }
-        .scan-btn:hover { background: #34495e; transform: scale(1.05); }
-        .scan-btn:active { transform: scale(0.95); }
+        .dynamic-header.has-image { color: white; text-shadow: 0 2px 4px rgba(0,0,0,0.8); }
+        .dynamic-header h1 { margin: 0; font-size: 1.8rem; }
 
-        .btn-submit {
-            width: 100%;
-            padding: 14px;
-            background: var(--primary);
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 1rem;
-            font-weight: bold;
-            cursor: pointer;
-            transition: background 0.3s;
-            opacity: 0.5;
-            pointer-events: none; /* Désactivé par défaut */
+        /* --- LAYOUTS --- */
+        .layout-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: var(--layout-gap); }
+        .layout-list { display: flex; flex-direction: column; gap: var(--layout-gap); }
+        .layout-masonry { column-count: 3; column-gap: var(--layout-gap); }
+        @media (max-width: 768px) { .layout-masonry { column-count: 1; } }
+
+        /* --- COMPOSANTS --- */
+        .card { 
+            background: var(--card); 
+            border-radius: var(--card-radius); 
+            padding: 20px; 
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05); 
+            break-inside: avoid; 
+            margin-bottom: var(--layout-gap); 
+            transition: background-color 0.3s, border-radius 0.3s; 
         }
+        .btn { padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; transition: 0.2s; display: inline-block; }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-accent { background: var(--accent); color: white; }
+        .btn-danger { background: #c0392b; color: white; }
+        .btn-success { background: var(--success); color: white; }
+        .btn:hover { opacity: 0.9; transform: translateY(-1px); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+        .btn-sm { padding: 5px 10px; font-size: 0.85rem; }
+        
+        input, select, textarea { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; margin-bottom: 10px; font-family: inherit; font-size: 1rem; }
+        input:focus, select:focus, textarea:focus { outline: none; border-color: var(--primary); }
+
+        /* --- LOGIN SCREEN --- */
+        #login-screen { display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 20px; box-sizing: border-box; }
+        .login-box { background: var(--card); padding: 2.5rem; border-radius: var(--card-radius); box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 100%; max-width: 420px; text-align: center; }
+        .login-box h2 { color: var(--primary); margin-top: 0; margin-bottom: 20px; }
+        .input-group { margin-bottom: 20px; text-align: left; position: relative; }
+        .input-group label { display: block; margin-bottom: 8px; font-weight: 600; font-size: 0.9rem; color: #555; }
+        .scan-btn { position: absolute; right: 10px; top: 42px; background: var(--primary); color: white; border: none; width: 38px; height: 38px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; z-index: 10; }
+        .scan-btn:hover { background: #34495e; }
+        .btn-submit { width: 100%; padding: 14px; background: var(--primary); color: white; border: none; border-radius: 8px; font-size: 1rem; font-weight: bold; cursor: pointer; transition: 0.3s; opacity: 0.5; pointer-events: none; }
         .btn-submit.active { opacity: 1; pointer-events: all; }
         .btn-submit:hover { background: #34495e; }
+        .error-msg { color: #c0392b; background: #fadbd8; padding: 10px; border-radius: 6px; font-size: 0.9rem; margin-bottom: 15px; display: none; border: 1px solid #f5b7b1; }
+        .info-msg { color: #555; background: #f8f9fa; padding: 15px; border-radius: 6px; font-size: 0.85rem; margin-top: 20px; line-height: 1.5; text-align: left; }
+        .info-msg code { background: #fff; padding: 2px 5px; border-radius: 3px; font-family: monospace; color: #c0392b; }
+        .db-status { font-size: 0.75rem; color: #7f8c8d; margin-top: 5px; }
 
-        .error-msg { color: #e74c3c; background: #fadbd8; padding: 10px; border-radius: 6px; font-size: 0.9rem; margin-bottom: 15px; display: none; border: 1px solid #f5b7b1; }
-        .info-msg { color: #2c3e50; background: #ebf5fb; padding: 10px; border-radius: 6px; font-size: 0.85rem; margin-top: 15px; line-height: 1.4; }
-        .info-msg code { background: #fff; padding: 2px 5px; border-radius: 3px; font-family: monospace; }
-
-        /* Modal Caméra */
-        #camera-modal {
-            display: none;
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.9);
-            z-index: 2000;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            padding: 20px;
-            box-sizing: border-box;
-        }
+        /* --- MODAL CAMÉRA --- */
+        #camera-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 2000; flex-direction: column; justify-content: center; align-items: center; padding: 20px; box-sizing: border-box; }
         #reader { width: 100%; max-width: 500px; background: white; border-radius: 10px; overflow: hidden; }
         .close-cam { margin-top: 20px; background: var(--accent); color: white; border: none; padding: 12px 30px; border-radius: 30px; font-size: 1rem; cursor: pointer; font-weight: bold; }
 
-        /* Loader */
+        /* --- ADMIN PANEL --- */
+        #admin-panel { display: none; max-width: 1200px; margin: 20px auto; padding: 20px; }
+        .dashboard-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; background: var(--card); padding: 20px; border-radius: var(--card-radius); box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        .admin-tabs { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid #ddd; padding-bottom: 10px; overflow-x: auto; }
+        .admin-tab { padding: 10px 20px; background: #eee; border: none; border-radius: 20px; cursor: pointer; white-space: nowrap; font-weight: 600; color: #555; }
+        .admin-tab.active { background: var(--primary); color: white; }
+        .admin-section { display: none; background: var(--card); padding: 25px; border-radius: var(--card-radius); box-shadow: 0 2px 10px rgba(0,0,0,0.05); animation: fadeIn 0.3s; }
+        .admin-section.active { display: block; }
+        .color-picker-group { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+        .color-picker-group input[type="color"] { width: 50px; height: 40px; padding: 0; border: none; cursor: pointer; background: none; }
+        .data-item { display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid #eee; }
+        .data-item:last-child { border-bottom: none; }
+        .data-info { flex-grow: 1; text-align: left; }
+        .data-name { font-weight: bold; display: block; color: var(--text); }
+        .data-meta { font-size: 0.85rem; color: #7f8c8d; }
+
+        /* --- USER APP --- */
+        #user-app { display: none; max-width: 1000px; margin: 0 auto; padding: 20px; }
+        .nav-bar { margin: 20px 0; display: flex; gap: 10px; overflow-x: auto; padding-bottom: 5px; }
+        .post-img { width: 100%; border-radius: var(--card-radius); margin-bottom: 10px; display: block; }
+        .quote-box { font-style: italic; border-left: 4px solid var(--accent); padding-left: 15px; background: rgba(0,0,0,0.03); padding: 15px; border-radius: 0 var(--card-radius) var(--card-radius) 0; color: #555; }
+        .publish-area { display: none; }
+        .publish-area.active { display: block; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .hidden { display: none !important; }
         .loader { border: 3px solid #f3f3f3; border-top: 3px solid var(--primary); border-radius: 50%; width: 20px; height: 20px; animation: spin 1s linear infinite; display: inline-block; vertical-align: middle; margin-left: 10px; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
 
-    <div class="login-box">
-        <h2 id="site-title">Connexion</h2>
-        
-        <div id="error-box" class="error-msg"></div>
+    <!-- === ÉCRAN DE CONNEXION === -->
+    <div id="login-screen">
+        <div class="login-box">
+            <h2 id="login-title">Connexion</h2>
+            <div id="login-error" class="error-msg"></div>
+            
+            <form id="login-form">
+                <div class="input-group">
+                    <label for="scan-input">Identifiant</label>
+                    <input type="text" id="scan-input" placeholder="Tapez ou scannez votre ID" autocomplete="off">
+                    <button type="button" class="scan-btn" onclick="startCamera()" title="Scanner">📷</button>
+                </div>
 
-        <form id="login-form">
-            <div class="input-group">
-                <label for="scan-input">Identifiant</label>
-                <input type="text" id="scan-input" placeholder="Tapez ou scannez votre ID" autocomplete="off">
-                <button type="button" class="scan-btn" onclick="startCamera()" title="Scanner un code-barres">📷</button>
+                <div class="input-group">
+                    <label for="pass-input">Mot de passe</label>
+                    <input type="password" id="pass-input" placeholder="Votre mot de passe">
+                </div>
+
+                <button type="submit" id="btn-submit" class="btn-submit">Se connecter</button>
+            </form>
+
+            <div class="info-msg">
+                <strong>Comptes de test :</strong><br>
+                Admin : <code>admin</code> / <code>admin123</code><br>
+                Utilisateur : <code>123456</code> / <code>admin</code>
+                <div id="db-status" class="db-status">Vérification de la base de données...</div>
             </div>
-
-            <div class="input-group">
-                <label for="pass-input">Mot de passe</label>
-                <input type="password" id="pass-input" placeholder="Votre mot de passe">
-            </div>
-
-            <button type="submit" id="btn-submit" class="btn-submit">Se connecter</button>
-        </form>
-
-        <div class="info-msg">
-            <strong>Comptes de test :</strong><br>
-            Admin : <code>admin</code> / <code>admin123</code><br>
-            Utilisateur : <code>123456</code> / <code>admin</code>
-            <div id="db-status" style="margin-top:5px; font-size:0.75rem; color:#7f8c8d;">Vérification de la base de données...</div>
         </div>
     </div>
 
-    <!-- MODAL CAMÉRA -->
+    <!-- === MODAL CAMÉRA === -->
     <div id="camera-modal">
         <div id="reader"></div>
-        <button class="close-cam" onclick="stopCamera()">Fermer la caméra</button>
+        <button class="close-cam" onclick="stopCamera()">Fermer</button>
     </div>
 
-    <!-- CONTENEURS APP & ADMIN (Cachés par défaut) -->
-    <div id="app-container" style="display:none; width:100%; height:100%; position:fixed; top:0; left:0; background:var(--bg); z-index:100; overflow:auto;"></div>
+    <!-- === PANEL ADMINISTRATEUR === -->
+    <div id="admin-panel">
+        <div class="dashboard-header">
+            <div>
+                <h2 style="margin:0; color:var(--primary);">🛠️ Administration</h2>
+                <span style="color:#7f8c8d; font-size:0.9rem;">Gestion complète de la communauté</span>
+            </div>
+            <button onclick="logout()" class="btn btn-danger">Déconnexion</button>
+        </div>
+
+        <div class="admin-tabs">
+            <button class="admin-tab active" onclick="showAdminTab('users')">👥 Utilisateurs</button>
+            <button class="admin-tab" onclick="showAdminTab('posts')">📰 Publications</button>
+            <button class="admin-tab" onclick="showAdminTab('design')">🎨 Design & Layout</button>
+            <button class="admin-tab" onclick="showAdminTab('texts')">📝 Textes</button>
+        </div>
+
+        <!-- TAB UTILISATEURS -->
+        <div id="tab-users" class="admin-section active">
+            <h3>Gérer les membres</h3>
+            <div style="background:#f8f9fa; padding:20px; border-radius:8px; margin-bottom:20px; border:1px solid #eee;">
+                <div style="display:grid; grid-template-columns: 1fr 1fr 1fr auto; gap:10px;">
+                    <input type="text" id="new-u-id" placeholder="Identifiant (ID)" style="margin:0;">
+                    <input type="text" id="new-u-name" placeholder="Nom complet" style="margin:0;">
+                    <input type="text" id="new-u-pass" placeholder="Mot de passe" style="margin:0;">
+                    <button onclick="addUser()" class="btn btn-success">Ajouter</button>
+                </div>
+            </div>
+            <div id="admin-users-list" class="layout-list"></div>
+        </div>
+
+        <!-- TAB PUBLICATIONS -->
+        <div id="tab-posts" class="admin-section">
+            <h3>Modération des contenus</h3>
+            <div id="admin-posts-list" class="layout-list"></div>
+        </div>
+
+        <!-- TAB DESIGN -->
+        <div id="tab-design" class="admin-section">
+            <h3>Personnalisation Visuelle</h3>
+            <p style="color:#666; margin-bottom:20px;">Modifiez l'apparence en temps réel. Cliquez sur "Sauvegarder" pour appliquer à tous.</p>
+            
+            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap:30px;">
+                <div>
+                    <h4>🎨 Couleurs</h4>
+                    <div class="color-picker-group"><label>Primaire (En-tête)</label><input type="color" id="cfg-primary"></div>
+                    <div class="color-picker-group"><label>Accent (Boutons)</label><input type="color" id="cfg-accent"></div>
+                    <div class="color-picker-group"><label>Fond de page</label><input type="color" id="cfg-bg"></div>
+                    <div class="color-picker-group"><label>Fond des cartes</label><input type="color" id="cfg-card"></div>
+                </div>
+                <div>
+                    <h4>📐 Layout & Images</h4>
+                    <label>Image d'en-tête (Upload)</label>
+                    <input type="file" id="cfg-header-file" accept="image/*" onchange="uploadHeaderImage()">
+                    <p id="header-preview" style="font-size:0.8rem; color:var(--success); min-height:1.2em;"></p>
+                    
+                    <label>Disposition du flux</label>
+                    <select id="cfg-layout">
+                        <option value="grid">Grille (Responsive)</option>
+                        <option value="list">Liste (Une colonne)</option>
+                        <option value="masonry">Maçonnerie (Colonnes)</option>
+                    </select>
+                    
+                    <label>Arrondi des cartes: <span id="radius-val">10</span>px</label>
+                    <input type="range" id="cfg-radius" min="0" max="30" value="10" oninput="document.getElementById('radius-val').innerText=this.value; previewConfig()">
+                </div>
+            </div>
+            <button onclick="saveConfig()" class="btn btn-success" style="margin-top:25px; width:100%; padding:15px;">💾 Sauvegarder le Design</button>
+        </div>
+
+        <!-- TAB TEXTES -->
+        <div id="tab-texts" class="admin-section">
+            <h3>Éditeur de Textes</h3>
+            <label>Titre du site</label>
+            <input type="text" id="cfg-title">
+            <label>Message d'accueil (sous le titre)</label>
+            <input type="text" id="cfg-welcome" placeholder="Ex: Bienvenue sur notre réseau">
+            <button onclick="saveConfig()" class="btn btn-success">💾 Sauvegarder les Textes</button>
+        </div>
+    </div>
+
+    <!-- === APPLICATION UTILISATEUR === -->
+    <div id="user-app">
+        <div class="dynamic-header" id="app-header">
+            <h1 id="app-site-title">Titre</h1>
+            <p id="app-welcome-msg">Bienvenue</p>
+            <button onclick="logout()" class="btn btn-accent" style="margin-top:10px; border:1px solid white;">Déconnexion</button>
+        </div>
+
+        <div class="nav-bar">
+            <button class="btn btn-primary" onclick="renderFeed()">🏠 Flux</button>
+            <button class="btn" style="background:#eee; color:#333;" onclick="togglePublish()">✏️ Publier</button>
+        </div>
+
+        <div id="publish-area" class="card publish-area">
+            <h3 style="margin-top:0;">Nouvelle publication</h3>
+            <select id="pub-type" onchange="togglePubFields()">
+                <option value="photo">📷 Photo</option>
+                <option value="quote">💬 Citation</option>
+            </select>
+            
+            <div id="pub-photo-field">
+                <input type="file" id="pub-file" accept="image/*">
+                <input type="text" id="pub-caption" placeholder="Légende (optionnel)">
+            </div>
+            
+            <div id="pub-quote-field" class="hidden">
+                <textarea id="pub-text" rows="4" placeholder="Écrivez votre citation ici..."></textarea>
+                <input type="text" id="pub-cited" placeholder="ID de la personne citée (optionnel)">
+                <small style="color:#7f8c8d;">Si l'ID n'existe pas, la citation sera publiée sans mention.</small>
+            </div>
+            
+            <button onclick="submitPost()" class="btn btn-primary" style="width:100%;">Publier</button>
+        </div>
+
+        <div id="feed-container" class="layout-grid"></div>
+    </div>
 
     <script>
-        // --- CONFIGURATION SUPABASE ---
+        // === CONFIGURATION SUPABASE ===
         const SUPABASE_URL = 'https://vblkojfwnemmkadqkpzl.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZibGtvamZ3bmVtbWthZHFrcHpsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA5MjkyNDIsImV4cCI6MjEwNjUwNTI0Mn0.VPAKcJhwjbG3QBj7ZHBtR45TV3eAfl4nsa3wXnoBYto';
         
-        let supabase;
-        let isDbReady = false;
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        let currentUser = null;
+        let localConfig = {};
 
-        // Initialisation différée pour gérer les erreurs
-        try {
-            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-            checkDatabase();
-        } catch (e) {
-            showError("Erreur de configuration Supabase. Vérifiez la console.");
-            console.error(e);
-        }
-
-        async function checkDatabase() {
+        // === INITIALISATION ===
+        async function init() {
             const statusEl = document.getElementById('db-status');
             try {
-                // Test de connexion simple
-                const { data, error } = await supabase.from('config').select('key').limit(1);
+                const { data, error } = await supabase.from('config').select('*');
                 if (error) throw error;
-                isDbReady = true;
-                statusEl.innerHTML = "✅ Base de données connectée";
-                statusEl.style.color = "green";
-                loadConfig();
+                
+                if (data) {
+                    data.forEach(row => localConfig[row.key] = row.value);
+                    applyConfig();
+                    statusEl.innerHTML = "✅ Base de données connectée";
+                    statusEl.style.color = "green";
+                }
             } catch (err) {
                 console.error("Erreur DB:", err);
-                statusEl.innerHTML = "⚠️ Erreur de connexion DB. Vérifiez les tables SQL.";
+                statusEl.innerHTML = "⚠️ Erreur DB. Vérifiez les tables SQL.";
                 statusEl.style.color = "orange";
-                // On ne bloque pas le login, on laisse l'utilisateur essayer (au cas où les tables users existent)
+                applyConfig(); // Apply defaults
             }
+            // Focus auto
+            document.getElementById('scan-input').focus();
         }
 
-        // --- GESTION DU FORMULAIRE ---
+        function applyConfig() {
+            const r = document.documentElement.style;
+            r.setProperty('--primary', localConfig.primary_color || '#2c3e50');
+            r.setProperty('--accent', localConfig.accent_color || '#e74c3c');
+            r.setProperty('--bg', localConfig.bg_color || '#f4f7f6');
+            r.setProperty('--card', localConfig.card_color || '#ffffff');
+            r.setProperty('--card-radius', (localConfig.card_radius || '10') + 'px');
+            
+            const title = localConfig.site_title || 'Ma Communauté';
+            document.getElementById('app-site-title').textContent = title;
+            document.getElementById('login-title').textContent = title;
+            
+            // Remplir les inputs admin
+            document.getElementById('cfg-primary').value = localConfig.primary_color || '#2c3e50';
+            document.getElementById('cfg-accent').value = localConfig.accent_color || '#e74c3c';
+            document.getElementById('cfg-bg').value = localConfig.bg_color || '#f4f7f6';
+            document.getElementById('cfg-card').value = localConfig.card_color || '#ffffff';
+            document.getElementById('cfg-layout').value = localConfig.layout_mode || 'grid';
+            document.getElementById('cfg-radius').value = localConfig.card_radius || 10;
+            document.getElementById('radius-val').innerText = localConfig.card_radius || 10;
+            document.getElementById('cfg-title').value = localConfig.site_title || '';
+            document.getElementById('cfg-welcome').value = localConfig.welcome_msg || '';
+        }
+
+        // === GESTION LOGIN ===
         const scanInput = document.getElementById('scan-input');
         const passInput = document.getElementById('pass-input');
         const btnSubmit = document.getElementById('btn-submit');
-        const errorBox = document.getElementById('error-box');
+        const errorBox = document.getElementById('login-error');
 
-        // Focus automatique au chargement
-        window.addEventListener('load', () => {
-            scanInput.focus();
-        });
-
-        // Activation du bouton quand les deux champs sont remplis
         function checkForm() {
             if (scanInput.value.trim().length > 0 && passInput.value.trim().length > 0) {
                 btnSubmit.classList.add('active');
@@ -195,7 +342,6 @@
                 btnSubmit.classList.remove('active');
             }
         }
-
         scanInput.addEventListener('input', checkForm);
         passInput.addEventListener('input', checkForm);
 
@@ -207,136 +353,281 @@
             const pass = passInput.value.trim();
             
             errorBox.style.display = 'none';
+            const originalText = btnSubmit.innerHTML;
             btnSubmit.innerHTML = 'Connexion... <div class="loader"></div>';
             btnSubmit.disabled = true;
 
             try {
                 const { data, error } = await supabase.from('users').select('*').eq('id', id).single();
+                if (error || !data) throw new Error("Identifiant inconnu");
+                if (data.password !== pass) throw new Error("Mot de passe incorrect");
 
-                if (error || !data) {
-                    throw new Error("Identifiant inconnu");
-                }
-
-                if (data.password !== pass) {
-                    throw new Error("Mot de passe incorrect");
-                }
-
-                // Succès
-                window.currentUser = data;
+                currentUser = data;
+                document.getElementById('login-screen').style.display = 'none';
+                
                 if (data.role === 'admin') {
-                    loadAdminPanel();
+                    document.getElementById('admin-panel').style.display = 'block';
+                    loadAdminData();
                 } else {
-                    loadUserApp();
+                    document.getElementById('user-app').style.display = 'block';
+                    document.getElementById('app-welcome-msg').textContent = localConfig.welcome_msg || `Bonjour, ${data.name}`;
+                    
+                    // Appliquer le header image si présent
+                    const header = document.getElementById('app-header');
+                    if(localConfig.header_image) {
+                        header.style.backgroundImage = `url(${localConfig.header_image})`;
+                        header.classList.add('has-image');
+                    }
+                    
+                    // Appliquer le layout
+                    const feed = document.getElementById('feed-container');
+                    feed.className = 'layout-' + (localConfig.layout_mode || 'grid');
+                    
+                    renderFeed();
                 }
-
             } catch (err) {
-                showError(err.message);
-                btnSubmit.innerHTML = 'Se connecter';
+                errorBox.textContent = err.message;
+                errorBox.style.display = 'block';
+                btnSubmit.innerHTML = originalText;
                 btnSubmit.disabled = false;
-                btnSubmit.classList.add('active'); // Garder actif si les champs sont remplis
+                btnSubmit.classList.add('active');
                 passInput.value = '';
                 passInput.focus();
+                
+                // Animation secousse
+                document.querySelector('.login-box').animate([
+                    { transform: 'translateX(0)' }, { transform: 'translateX(-10px)' },
+                    { transform: 'translateX(10px)' }, { transform: 'translateX(0)' }
+                ], { duration: 300 });
             }
         });
 
-        function showError(msg) {
-            errorBox.textContent = msg;
-            errorBox.style.display = 'block';
-            // Animation de secousse
-            document.querySelector('.login-box').animate([
-                { transform: 'translateX(0)' },
-                { transform: 'translateX(-10px)' },
-                { transform: 'translateX(10px)' },
-                { transform: 'translateX(0)' }
-            ], { duration: 300 });
-        }
+        function logout() { location.reload(); }
 
-        // --- CAMÉRA ---
+        // === CAMÉRA ===
         let scanner = null;
-
         function startCamera() {
-            const modal = document.getElementById('camera-modal');
-            modal.style.display = 'flex';
-            
+            document.getElementById('camera-modal').style.display = 'flex';
             scanner = new Html5Qrcode("reader");
-            const config = { fps: 10, qrbox: { width: 250, height: 250 } };
-
-            scanner.start({ facingMode: "environment" }, config, (decodedText) => {
+            scanner.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, (text) => {
                 stopCamera();
-                scanInput.value = decodedText.replace(/[^a-zA-Z0-9]/g, '');
+                scanInput.value = text.replace(/[^a-zA-Z0-9]/g, '');
                 passInput.focus();
                 checkForm();
             }).catch(err => {
-                console.error(err);
-                showError("Erreur caméra: " + err);
-                setTimeout(stopCamera, 2000);
+                alert("Erreur caméra: " + err);
+                stopCamera();
             });
         }
-
         function stopCamera() {
             if (scanner) {
-                scanner.stop().then(() => {
-                    document.getElementById('camera-modal').style.display = 'none';
-                    scanner = null;
-                }).catch(err => console.error(err));
+                scanner.stop().then(() => document.getElementById('camera-modal').style.display = 'none');
+                scanner = null;
             } else {
                 document.getElementById('camera-modal').style.display = 'none';
             }
         }
 
-        // --- CHARGEMENT DES INTERFACES (Injection HTML) ---
-        
-        function loadConfig() {
-            // Charger la config pour le titre
-            supabase.from('config').select('*').then(({data}) => {
-                if(data) {
-                    const config = {};
-                    data.forEach(r => config[r.key] = r.value);
-                    if(config.site_title) document.getElementById('site-title').textContent = config.site_title;
-                }
+        // === ADMIN FUNCTIONS ===
+        function showAdminTab(tabId) {
+            document.querySelectorAll('.admin-section').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.admin-tab').forEach(el => el.classList.remove('active'));
+            document.getElementById('tab-' + tabId).classList.add('active');
+            event.target.classList.add('active');
+            if(tabId === 'users' || tabId === 'posts') loadAdminData();
+        }
+
+        async function loadAdminData() {
+            // Users
+            const { data: users } = await supabase.from('users').select('*');
+            const uList = document.getElementById('admin-users-list');
+            uList.innerHTML = '';
+            if(users) users.forEach(u => {
+                uList.innerHTML += `
+                    <div class="card data-item">
+                        <div class="data-info">
+                            <span class="data-name">${u.name} <small style="color:#999">(${u.id})</small></span>
+                            <span class="data-meta">Rôle: ${u.role || 'user'}</span>
+                        </div>
+                        ${u.id !== 'admin' ? `<button onclick="deleteUser('${u.id}')" class="btn btn-danger btn-sm">Supprimer</button>` : ''}
+                    </div>`;
+            });
+
+            // Posts
+            const { data: posts } = await supabase.from('posts').select('*').order('created_at', {ascending:false});
+            const pList = document.getElementById('admin-posts-list');
+            pList.innerHTML = '';
+            if(!posts || posts.length === 0) { pList.innerHTML = '<p style="text-align:center;color:#999;">Aucune publication.</p>'; return; }
+            
+            posts.forEach(p => {
+                pList.innerHTML += `
+                    <div class="card data-item">
+                        <div class="data-info">
+                            <span class="data-name">${p.author_name}</span>
+                            <span class="data-meta">${new Date(p.created_at).toLocaleDateString()} - ${p.type === 'photo' ? '📷 Photo' : '💬 ' + (p.content?p.content.substring(0,40)+'...':'')}</span>
+                        </div>
+                        <button onclick="deletePost(${p.id})" class="btn btn-danger btn-sm">Supprimer</button>
+                    </div>`;
             });
         }
 
-        function loadAdminPanel() {
-            document.body.innerHTML = ''; // Clean
-            document.body.style.display = 'block';
-            document.body.style.background = 'var(--bg)';
-            
-            // Injection du code Admin (Version simplifiée pour l'exemple, à remplacer par le code complet précédent)
-            // Pour faire court, on recharge la page avec un paramètre ou on injecte le gros bloc de code admin ici.
-            // La méthode la plus propre dans un seul fichier est d'avoir tout le code HTML caché.
-            // Mais comme le code est long, je vais simuler le chargement.
-            alert("Connexion Admin réussie ! (Le code complet de l'interface Admin doit être présent dans le fichier HTML final comme dans la version précédente)");
-            // NOTE: Dans la version précédente, tout le HTML admin était déjà dans le fichier. 
-            // Ici, pour corriger le bug de login, assurez-vous que le HTML de l'admin (div#admin-panel) est bien présent dans le corps de la page (caché avec display:none).
-            // Je vous recommande d'utiliser le fichier complet fourni dans la réponse précédente, mais en remplaçant juste la partie JS de login par celle-ci.
-            
-            // Pour que ça marche immédiatement, copiez le contenu de <div id="admin-panel">...</div> et <div id="user-app">...</div> 
-            // de la réponse précédente et collez-les ici avant le script, avec style="display:none".
-            
-            location.reload(); // Fallback simple pour l'instant si le HTML n'est pas là
+        async function addUser() {
+            const id = document.getElementById('new-u-id').value.trim();
+            const name = document.getElementById('new-u-name').value.trim();
+            const pass = document.getElementById('new-u-pass').value.trim();
+            if(!id || !name || !pass) return alert("Tous les champs sont requis");
+
+            const { error } = await supabase.from('users').insert([{id, name, password:pass, role:'user'}]);
+            if(error) alert("Erreur: " + error.message);
+            else {
+                alert("Utilisateur ajouté !");
+                document.getElementById('new-u-id').value = '';
+                document.getElementById('new-u-name').value = '';
+                document.getElementById('new-u-pass').value = '';
+                loadAdminData();
+            }
         }
 
-        function loadUserApp() {
-            alert("Connexion Utilisateur réussie !");
-            location.reload(); 
+        async function deleteUser(id) {
+            if(confirm("Supprimer cet utilisateur ?")) {
+                await supabase.from('users').delete().eq('id', id);
+                loadAdminData();
+            }
         }
 
+        async function deletePost(id) {
+            if(confirm("Supprimer cette publication ?")) {
+                await supabase.from('posts').delete().eq('id', id);
+                loadAdminData();
+            }
+        }
+
+        // === CONFIG & DESIGN ===
+        function previewConfig() {
+            const r = document.documentElement.style;
+            r.setProperty('--primary', document.getElementById('cfg-primary').value);
+            r.setProperty('--accent', document.getElementById('cfg-accent').value);
+            r.setProperty('--bg', document.getElementById('cfg-bg').value);
+            r.setProperty('--card', document.getElementById('cfg-card').value);
+            r.setProperty('--card-radius', document.getElementById('cfg-radius').value + 'px');
+            document.getElementById('app-site-title').textContent = document.getElementById('cfg-title').value;
+        }
+
+        async function uploadHeaderImage() {
+            const file = document.getElementById('cfg-header-file').files[0];
+            if(!file) return;
+            const fileName = `header_${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
+            const { error } = await supabase.storage.from('uploads').upload(fileName, file);
+            if(error) return alert("Erreur upload: " + error.message);
+            const { data: { publicUrl } } = supabase.storage.from('uploads').getPublicUrl(fileName);
+            document.getElementById('header-preview').textContent = "✅ Image prête à sauvegarder";
+            localConfig.header_image = publicUrl;
+        }
+
+        async function saveConfig() {
+            const updates = [
+                supabase.from('config').upsert({key:'primary_color', value:document.getElementById('cfg-primary').value}),
+                supabase.from('config').upsert({key:'accent_color', value:document.getElementById('cfg-accent').value}),
+                supabase.from('config').upsert({key:'bg_color', value:document.getElementById('cfg-bg').value}),
+                supabase.from('config').upsert({key:'card_color', value:document.getElementById('cfg-card').value}),
+                supabase.from('config').upsert({key:'layout_mode', value:document.getElementById('cfg-layout').value}),
+                supabase.from('config').upsert({key:'card_radius', value:document.getElementById('cfg-radius').value}),
+                supabase.from('config').upsert({key:'site_title', value:document.getElementById('cfg-title').value}),
+                supabase.from('config').upsert({key:'welcome_msg', value:document.getElementById('cfg-welcome').value}),
+            ];
+            if(localConfig.header_image) updates.push(supabase.from('config').upsert({key:'header_image', value:localConfig.header_image}));
+
+            const results = await Promise.all(updates);
+            if(results.some(r => r.error)) alert("Erreur lors de la sauvegarde");
+            else {
+                alert("✅ Configuration sauvegardée et appliquée à tous les utilisateurs !");
+                init();
+            }
+        }
+
+        // === USER APP ===
+        function togglePublish() {
+            document.getElementById('publish-area').classList.toggle('active');
+        }
+        function togglePubFields() {
+            const type = document.getElementById('pub-type').value;
+            document.getElementById('pub-photo-field').style.display = type === 'photo' ? 'block' : 'none';
+            document.getElementById('pub-quote-field').style.display = type === 'quote' ? 'block' : 'none';
+        }
+
+        async function submitPost() {
+            const type = document.getElementById('pub-type').value;
+            let content = '', caption = '', citedId = null, citedName = null;
+
+            if(type === 'photo') {
+                const file = document.getElementById('pub-file').files[0];
+                if(!file) return alert("Image requise");
+                caption = document.getElementById('pub-caption').value;
+                const fileName = `post_${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
+                const { error } = await supabase.storage.from('uploads').upload(fileName, file);
+                if(error) return alert("Erreur upload: " + error.message);
+                const { data: { publicUrl } } = supabase.storage.from('uploads').getPublicUrl(fileName);
+                content = publicUrl;
+            } else {
+                content = document.getElementById('pub-text').value;
+                const cited = document.getElementById('pub-cited').value.trim();
+                if(!content) return alert("Texte requis");
+                if(cited) {
+                    const { data } = await supabase.from('users').select('name').eq('id', cited).single();
+                    if(data) { citedId = cited; citedName = data.name; }
+                    else return alert("L'ID cité n'existe pas dans la base.");
+                }
+            }
+
+            const { error } = await supabase.from('posts').insert([{
+                author_id: currentUser.id,
+                author_name: currentUser.name,
+                type,
+                content,
+                caption,
+                cited_id: citedId,
+                cited_name: citedName
+            }]);
+
+            if(error) alert("Erreur: " + error.message);
+            else {
+                alert("✅ Publication réussie !");
+                togglePublish();
+                document.getElementById('pub-file').value = '';
+                document.getElementById('pub-caption').value = '';
+                document.getElementById('pub-text').value = '';
+                document.getElementById('pub-cited').value = '';
+                renderFeed();
+            }
+        }
+
+        async function renderFeed() {
+            const container = document.getElementById('feed-container');
+            container.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:20px;">Chargement...</div>';
+            
+            const { data: posts } = await supabase.from('posts').select('*').order('created_at', {ascending:false});
+            container.innerHTML = '';
+            
+            if(!posts || posts.length === 0) {
+                container.innerHTML = '<div style="grid-column:1/-1; text-align:center; color:#999; padding:40px;">Aucune publication pour le moment.</div>';
+                return;
+            }
+
+            posts.forEach(p => {
+                let html = `<div class="card"><div style="display:flex; justify-content:space-between; margin-bottom:12px;"><strong>${p.author_name}</strong><small style="color:#999;">${new Date(p.created_at).toLocaleDateString()}</small></div>`;
+                if(p.type === 'photo') {
+                    html += `<img src="${p.content}" class="post-img"><p style="margin:5px 0 0 0; color:#555;">${p.caption || ''}</p>`;
+                } else {
+                    html += `<div class="quote-box">"${p.content}"</div>`;
+                    if(p.cited_name) html += `<p style="text-align:right; margin-top:10px; font-size:0.9rem; color:var(--primary); font-weight:bold;">- Cité: ${p.cited_name}</p>`;
+                }
+                html += `</div>`;
+                container.innerHTML += html;
+            });
+        }
+
+        // Start
+        init();
     </script>
-    
-    <!-- IMPORTANT : Copiez ici les DIVs #admin-panel et #user-app de la version précédente -->
-    <!-- Elles doivent être présentes dans le HTML avec style="display:none" pour que les fonctions ci-dessus puissent les afficher -->
-    <div id="admin-panel" style="display:none;">
-        <!-- Collez le contenu HTML de l'admin panel ici -->
-        <h1>Panel Admin (À inclure)</h1>
-        <button onclick="location.reload()">Retour</button>
-    </div>
-    
-    <div id="user-app" style="display:none;">
-        <!-- Collez le contenu HTML de l'app utilisateur ici -->
-        <h1>App Utilisateur (À inclure)</h1>
-        <button onclick="location.reload()">Retour</button>
-    </div>
-
 </body>
 </html>
