@@ -2,10 +2,14 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Communauté - Gestion Complète</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Communauté Pro</title>
+    <!-- Supabase JS -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Scanner Code Barres -->
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
     <style>
+        /* Variables CSS dynamiques (modifiées par l'admin) */
         :root {
             --primary: #2c3e50;
             --secondary: #34495e;
@@ -13,476 +17,568 @@
             --success: #27ae60;
             --bg: #f4f7f6;
             --card: #ffffff;
-            --text: #333;
-            --meta: #7f8c8d;
+            --text: #333333;
+            --header-img: none;
+            --layout-gap: 20px;
+            --card-radius: 10px;
         }
 
-        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; color: var(--text); }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; color: var(--text); transition: 0.3s; }
         
-        /* --- UTILS --- */
-        .hidden { display: none !important; }
-        .btn { padding: 10px 15px; border: none; border-radius: 5px; cursor: pointer; font-size: 0.9rem; transition: 0.2s; }
+        /* Header Dynamique */
+        .dynamic-header {
+            background: var(--primary);
+            color: white;
+            padding: 20px;
+            text-align: center;
+            background-size: cover;
+            background-position: center;
+            position: relative;
+            transition: background-image 0.3s;
+        }
+        .dynamic-header.has-image { color: white; text-shadow: 0 2px 4px rgba(0,0,0,0.7); }
+        .dynamic-header h1 { margin: 0; font-size: 1.8rem; }
+
+        /* Layouts */
+        .layout-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: var(--layout-gap); }
+        .layout-list { display: flex; flex-direction: column; gap: var(--layout-gap); }
+        .layout-masonry { column-count: 3; column-gap: var(--layout-gap); }
+        @media (max-width: 768px) { .layout-masonry { column-count: 1; } }
+
+        /* Composants */
+        .card { background: var(--card); border-radius: var(--card-radius); padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); break-inside: avoid; margin-bottom: var(--layout-gap); transition: background-color 0.3s; }
+        .btn { padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; transition: 0.2s; }
         .btn-primary { background: var(--primary); color: white; }
-        .btn-danger { background: var(--accent); color: white; }
-        .btn-success { background: var(--success); color: white; }
-        .btn:hover { opacity: 0.9; }
-        .btn-sm { padding: 5px 10px; font-size: 0.8rem; }
-
-        /* --- LOGIN --- */
+        .btn-accent { background: var(--accent); color: white; }
+        .btn-danger { background: #c0392b; color: white; }
+        .btn:hover { opacity: 0.9; transform: translateY(-1px); }
+        
+        input, select, textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; margin-bottom: 10px; font-family: inherit; }
+        
+        /* Login */
         #login-screen { display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 20px; }
-        .login-box { background: var(--card); padding: 2rem; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 450px; text-align: center; }
-        h1, h2, h3 { color: var(--primary); margin-top: 0; }
+        .login-box { background: var(--card); padding: 2rem; border-radius: var(--card-radius); box-shadow: 0 4px 20px rgba(0,0,0,0.1); width: 100%; max-width: 400px; text-align: center; }
         
-        .input-group { margin-bottom: 15px; text-align: left; }
-        .input-wrapper { position: relative; display: flex; align-items: center; }
-        input, select, textarea { width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 5px; box-sizing: border-box; font-size: 1rem; }
-        input[readonly] { background: #f8f9fa; cursor: pointer; }
-        .scan-btn { position: absolute; right: 5px; top: 50%; transform: translateY(-50%); background: var(--primary); color: white; border: none; width: 35px; height: 35px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        /* Admin Panel */
+        #admin-panel { display: none; max-width: 1200px; margin: 20px auto; padding: 20px; }
+        .admin-tabs { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid #ddd; padding-bottom: 10px; overflow-x: auto; }
+        .admin-tab { padding: 10px 20px; background: #eee; border: none; border-radius: 20px; cursor: pointer; white-space: nowrap; }
+        .admin-tab.active { background: var(--primary); color: white; }
+        .admin-section { display: none; background: var(--card); padding: 25px; border-radius: var(--card-radius); box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        .admin-section.active { display: block; animation: fadeIn 0.3s; }
         
-        /* --- DASHBOARD --- */
-        #admin-screen { display: none; max-width: 1000px; margin: 20px auto; padding: 20px; }
-        .dashboard-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; background: var(--card); padding: 20px; border-radius: 10px; }
-        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 20px; }
-        .stat-card { background: var(--card); padding: 20px; border-radius: 10px; text-align: center; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
-        .stat-number { font-size: 2rem; font-weight: bold; color: var(--primary); }
+        .color-picker-group { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+        .color-picker-group input[type="color"] { width: 50px; height: 40px; padding: 0; border: none; cursor: pointer; }
         
-        .admin-section { background: var(--card); padding: 20px; border-radius: 10px; margin-bottom: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
-        .section-title { border-bottom: 2px solid var(--bg); padding-bottom: 10px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; }
-        
-        /* Tables & Lists */
-        .data-list { list-style: none; padding: 0; margin: 0; }
-        .data-item { display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid #eee; }
-        .data-item:last-child { border-bottom: none; }
-        .data-info { flex-grow: 1; }
-        .data-name { font-weight: bold; display: block; }
-        .data-meta { font-size: 0.85rem; color: var(--meta); }
+        /* App User */
+        #user-app { display: none; max-width: 1000px; margin: 0 auto; padding: 20px; }
+        .post-img { width: 100%; border-radius: var(--card-radius); margin-bottom: 10px; display: block; }
+        .quote-box { font-style: italic; border-left: 4px solid var(--accent); padding-left: 15px; background: rgba(0,0,0,0.03); padding: 15px; border-radius: 0 var(--card-radius) var(--card-radius) 0; }
 
-        /* Customization Preview */
-        .color-preview { width: 30px; height: 30px; border-radius: 50%; display: inline-block; vertical-align: middle; margin-left: 10px; border: 1px solid #ddd; }
-
-        /* Modal Camera */
-        #camera-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 1000; flex-direction: column; justify-content: center; align-items: center; }
-        #reader { width: 100%; max-width: 500px; background: white; border-radius: 10px; }
-        .close-cam { margin-top: 20px; background: var(--accent); color: white; border: none; padding: 10px 20px; border-radius: 30px; cursor: pointer; }
-
-        /* App Screen (User) */
-        #app-screen { display: none; max-width: 800px; margin: 0 auto; padding: 20px; }
-        .nav-tabs { display: flex; gap: 10px; margin-bottom: 20px; overflow-x: auto; }
-        .nav-btn { flex: 1; background: var(--card); border: 1px solid #ddd; padding: 10px; border-radius: 30px; cursor: pointer; }
-        .nav-btn.active { background: var(--primary); color: white; }
-        .feed-item { background: var(--card); padding: 20px; border-radius: 10px; margin-bottom: 20px; }
-        .post-img { width: 100%; border-radius: 5px; }
-        .post-quote { font-style: italic; background: #f9f9f9; padding: 15px; border-left: 4px solid var(--primary); }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .hidden { display: none !important; }
+        .loading { text-align: center; padding: 20px; color: var(--meta); }
     </style>
 </head>
 <body>
 
-    <!-- LOGIN SCREEN -->
+    <!-- LOGIN -->
     <div id="login-screen">
         <div class="login-box">
-            <h1 id="site-title-login">Accès Communauté</h1>
-            <div id="login-error" class="alert-error" style="color:red; display:none; margin-bottom:10px;"></div>
+            <h2 id="login-title">Connexion</h2>
+            <div id="login-msg" style="margin:10px 0; color:red; display:none;"></div>
             <form id="login-form">
-                <div class="input-group">
-                    <label>Identifiant</label>
-                    <div class="input-wrapper">
-                        <input type="text" id="barcode" placeholder="Scan ou ID" readonly>
-                        <button type="button" class="scan-btn" onclick="startCamera()">📷</button>
-                    </div>
+                <div style="position:relative;">
+                    <input type="text" id="scan-input" placeholder="ID ou Scan" readonly required>
+                    <button type="button" onclick="startScan()" style="position:absolute; right:5px; top:5px; background:var(--primary); color:white; border:none; width:35px; height:35px; border-radius:50%; cursor:pointer;">📷</button>
                 </div>
-                <div class="input-group">
-                    <label>Mot de passe</label>
-                    <input type="password" id="password" placeholder="Mot de passe" disabled>
-                </div>
-                <button type="submit" class="btn btn-primary" style="width:100%" disabled id="btn-login">Se connecter</button>
+                <input type="password" id="pass-input" placeholder="Mot de passe" disabled required>
+                <button type="submit" class="btn btn-primary" style="width:100%" disabled>Entrer</button>
             </form>
-            <p style="font-size:0.8rem; color:#999; margin-top:15px;">
-                Admin: <code>admin</code> / <code>admin123</code><br>
-                User: <code>123456</code> / <code>admin</code>
-            </p>
+            <p style="font-size:0.8rem; color:#999; margin-top:15px;">Admin: admin / admin123</p>
         </div>
     </div>
 
-    <!-- CAMERA MODAL -->
-    <div id="camera-modal">
-        <div id="reader"></div>
-        <button class="close-cam" onclick="stopCamera()">Fermer</button>
+    <!-- MODAL SCAN -->
+    <div id="scan-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:2000; justify-content:center; align-items:center; flex-direction:column;">
+        <div id="reader" style="width:100%; max-width:500px; background:white; padding:10px; border-radius:10px;"></div>
+        <button onclick="stopScan()" class="btn btn-danger" style="margin-top:20px;">Fermer</button>
     </div>
 
-    <!-- ADMIN DASHBOARD -->
-    <div id="admin-screen">
-        <div class="dashboard-header">
-            <div>
-                <h2>🛠️ Administration</h2>
-                <span style="color:var(--meta)">Gérez votre communauté facilement</span>
-            </div>
-            <button class="btn btn-danger" onclick="logout()">Déconnexion</button>
+    <!-- ADMIN PANEL -->
+    <div id="admin-panel">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+            <h2>🛠️ Administration</h2>
+            <button onclick="logout()" class="btn btn-danger">Déconnexion</button>
         </div>
 
-        <!-- Stats -->
-        <div class="stats-grid">
-            <div class="stat-card">
-                <div class="stat-number" id="stat-users">0</div>
-                <div>Utilisateurs</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-number" id="stat-posts">0</div>
-                <div>Publications</div>
-            </div>
+        <div class="admin-tabs">
+            <button class="admin-tab active" onclick="showAdminTab('users')">👥 Utilisateurs</button>
+            <button class="admin-tab" onclick="showAdminTab('posts')">📰 Publications</button>
+            <button class="admin-tab" onclick="showAdminTab('design')">🎨 Design & Layout</button>
+            <button class="admin-tab" onclick="showAdminTab('texts')">📝 Textes</button>
         </div>
 
-        <!-- Gestion Utilisateurs -->
-        <div class="admin-section">
-            <div class="section-title">
-                <h3>👥 Utilisateurs</h3>
-                <button class="btn btn-success btn-sm" onclick="showAddUserForm()">+ Ajouter</button>
+        <!-- TAB UTILISATEURS -->
+        <div id="tab-users" class="admin-section active">
+            <h3>Gérer les membres</h3>
+            <div style="background:#f9f9f9; padding:15px; border-radius:6px; margin-bottom:20px;">
+                <input type="text" id="new-u-id" placeholder="Identifiant (ID unique)">
+                <input type="text" id="new-u-name" placeholder="Nom complet">
+                <input type="text" id="new-u-pass" placeholder="Mot de passe">
+                <button onclick="addUser()" class="btn btn-primary">Ajouter l'utilisateur</button>
             </div>
+            <div id="admin-users-list" class="layout-list"></div>
+        </div>
+
+        <!-- TAB PUBLICATIONS -->
+        <div id="tab-posts" class="admin-section">
+            <h3>Modération</h3>
+            <div id="admin-posts-list" class="layout-list"></div>
+        </div>
+
+        <!-- TAB DESIGN (NO-CODE AVANCÉ) -->
+        <div id="tab-design" class="admin-section">
+            <h3>Personnalisation Visuelle</h3>
+            <p>Modifiez l'apparence en temps réel. Cliquez sur "Sauvegarder" pour appliquer à tous les utilisateurs.</p>
             
-            <div id="add-user-form" class="hidden" style="background:#f8f9fa; padding:15px; border-radius:5px; margin-bottom:15px;">
-                <div class="input-group"><input type="text" id="new-user-id" placeholder="Identifiant (ex: 007)"></div>
-                <div class="input-group"><input type="text" id="new-user-name" placeholder="Nom complet"></div>
-                <div class="input-group"><input type="text" id="new-user-pass" placeholder="Mot de passe"></div>
-                <button class="btn btn-primary btn-sm" onclick="addUser()">Enregistrer</button>
-                <button class="btn btn-sm" onclick="hideAddUserForm()">Annuler</button>
+            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap:20px;">
+                <div>
+                    <h4>Couleurs</h4>
+                    <div class="color-picker-group"><label>Primaire (En-tête)</label><input type="color" id="cfg-primary" onchange="previewConfig()"></div>
+                    <div class="color-picker-group"><label>Accent (Boutons)</label><input type="color" id="cfg-accent" onchange="previewConfig()"></div>
+                    <div class="color-picker-group"><label>Fond de page</label><input type="color" id="cfg-bg" onchange="previewConfig()"></div>
+                    <div class="color-picker-group"><label>Fond des cartes</label><input type="color" id="cfg-card" onchange="previewConfig()"></div>
+                </div>
+                <div>
+                    <h4>Images & Layout</h4>
+                    <label>Image d'en-tête (URL ou Upload)</label>
+                    <input type="file" id="cfg-header-file" accept="image/*" onchange="uploadHeaderImage()">
+                    <p id="header-preview" style="font-size:0.8rem; color:green;"></p>
+                    
+                    <label>Disposition du flux</label>
+                    <select id="cfg-layout" onchange="previewConfig()">
+                        <option value="grid">Grille (Responsive)</option>
+                        <option value="list">Liste (Une colonne)</option>
+                        <option value="masonry">Maçonnerie (Colonnes)</option>
+                    </select>
+                    
+                    <label>Arrondi des cartes (px)</label>
+                    <input type="range" id="cfg-radius" min="0" max="30" value="10" oninput="previewConfig()">
+                </div>
             </div>
-
-            <ul class="data-list" id="users-list">
-                <!-- Rempli par JS -->
-            </ul>
+            <button onclick="saveConfig()" class="btn btn-success" style="margin-top:20px; width:100%;">💾 Sauvegarder le Design</button>
         </div>
 
-        <!-- Modération Publications -->
-        <div class="admin-section">
-            <div class="section-title">
-                <h3>📰 Publications</h3>
-            </div>
-            <ul class="data-list" id="posts-list">
-                <!-- Rempli par JS -->
-            </ul>
-        </div>
-
-        <!-- Personnalisation -->
-        <div class="admin-section">
-            <div class="section-title">
-                <h3>🎨 Apparence</h3>
-            </div>
-            <div class="input-group">
-                <label>Titre du site</label>
-                <input type="text" id="conf-site-title" oninput="saveConfig()">
-            </div>
-            <div class="input-group">
-                <label>Couleur Principale</label>
-                <input type="color" id="conf-color-primary" oninput="saveConfig()" style="height:50px; padding:5px;">
-            </div>
-            <div class="input-group">
-                <label>Couleur Secondaire (Boutons)</label>
-                <input type="color" id="conf-color-accent" oninput="saveConfig()" style="height:50px; padding:5px;">
-            </div>
-            <button class="btn btn-primary btn-sm" onclick="resetConfig()">Réinitialiser le style</button>
+        <!-- TAB TEXTES -->
+        <div id="tab-texts" class="admin-section">
+            <h3>Éditeur de Textes</h3>
+            <label>Titre du site</label>
+            <input type="text" id="cfg-title" oninput="previewConfig()">
+            <label>Message de bienvenue</label>
+            <input type="text" id="cfg-welcome" oninput="previewConfig()">
+            <button onclick="saveConfig()" class="btn btn-success">💾 Sauvegarder les Textes</button>
         </div>
     </div>
 
-    <!-- USER APP SCREEN -->
-    <div id="app-screen">
-        <div class="dashboard-header" style="margin-bottom:10px;">
-            <h2 id="user-welcome">Bonjour</h2>
-            <button class="btn btn-danger" onclick="logout()">Déconnexion</button>
-        </div>
-        
-        <div class="nav-tabs">
-            <button class="nav-btn active" onclick="switchView('feed')">Flux</button>
-            <button class="nav-btn" onclick="switchView('publish')">Publier</button>
+    <!-- USER APP -->
+    <div id="user-app">
+        <div class="dynamic-header" id="app-header">
+            <h1 id="app-site-title">Titre</h1>
+            <p id="app-welcome-msg">Bienvenue</p>
+            <button onclick="logout()" class="btn btn-accent" style="margin-top:10px;">Déconnexion</button>
         </div>
 
-        <div id="view-publish" class="hidden" style="background:var(--card); padding:20px; border-radius:10px; margin-bottom:20px;">
-            <h3>Nouveau Post</h3>
-            <select id="pub-type" class="input-group" style="margin-bottom:10px;">
-                <option value="photo">Photo</option>
-                <option value="quote">Citation</option>
+        <div style="margin:20px 0; display:flex; gap:10px; overflow-x:auto;">
+            <button class="btn btn-primary" onclick="renderFeed()">🏠 Flux</button>
+            <button class="btn" style="background:#eee;" onclick="togglePublish()">✏️ Publier</button>
+        </div>
+
+        <div id="publish-area" class="card hidden" style="margin-bottom:20px;">
+            <h3>Nouvelle publication</h3>
+            <select id="pub-type" onchange="togglePubFields()">
+                <option value="photo">📷 Photo</option>
+                <option value="quote">💬 Citation</option>
             </select>
-            <div id="field-photo"><input type="file" id="pub-file" accept="image/*" style="margin-bottom:10px;"><input type="text" id="pub-caption" placeholder="Légende"></div>
-            <div id="field-quote" class="hidden"><textarea id="pub-text" placeholder="Texte"></textarea><input type="text" id="pub-cited-id" placeholder="ID Auteur cité" style="margin-top:10px;"></div>
-            <button class="btn btn-primary" style="margin-top:10px;" onclick="submitPost()">Publier</button>
+            <div id="pub-photo-field">
+                <input type="file" id="pub-file" accept="image/*">
+                <input type="text" id="pub-caption" placeholder="Légende">
+            </div>
+            <div id="pub-quote-field" class="hidden">
+                <textarea id="pub-text" rows="3" placeholder="Votre citation..."></textarea>
+                <input type="text" id="pub-cited" placeholder="ID de la personne citée (optionnel)">
+            </div>
+            <button onclick="submitPost()" class="btn btn-primary">Publier</button>
         </div>
 
-        <div id="feed-container"></div>
+        <div id="feed-container" class="layout-grid"></div>
     </div>
 
     <script>
-        // --- DONNÉES & CONFIG ---
-        const DEFAULT_USERS = {
-            "admin": { name: "Administrateur", password: "admin123", role: "admin" },
-            "123456": { name: "Alice Dupont", password: "admin", role: "user" },
-            "987654": { name: "Bob Martin", password: "secret", role: "user" }
-        };
-
-        const DEFAULT_CONFIG = {
-            title: "Ma Communauté",
-            primary: "#2c3e50",
-            accent: "#e74c3c"
-        };
-
-        // Chargement des données (LocalStorage ou Défaut)
-        function getData(key, defaultVal) {
-            const stored = localStorage.getItem(key);
-            return stored ? JSON.parse(stored) : defaultVal;
-        }
-
-        function saveData(key, data) {
-            localStorage.setItem(key, JSON.stringify(data));
-            refreshAdmin();
-        }
-
-        let users = getData('community_users', DEFAULT_USERS);
-        let posts = getData('community_posts', []);
-        let config = getData('community_config', DEFAULT_CONFIG);
-        let currentUser = null;
-
-        // Application de la config au démarrage
-        function applyConfig() {
-            document.documentElement.style.setProperty('--primary', config.primary);
-            document.documentElement.style.setProperty('--accent', config.accent);
-            document.getElementById('site-title-login').textContent = config.title;
-            
-            // Remplir les champs admin
-            document.getElementById('conf-site-title').value = config.title;
-            document.getElementById('conf-color-primary').value = config.primary;
-            document.getElementById('conf-color-accent').value = config.accent;
-        }
-
-        // --- LOGIN & CAMERA ---
-        let html5QrCode = null;
-        const barcodeInput = document.getElementById('barcode');
+        // --- CONFIGURATION SUPABASE ---
+        // URL corrigée (sans /rest/v1/)
+        const SUPABASE_URL = 'https://vblkojfwnemmkadqkpzl.supabase.co'; 
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZibGtvamZ3bmVtbWthZHFrcHpsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA5MjkyNDIsImV4cCI6MjEwNjUwNTI0Mn0.VPAKcJhwjbG3QBj7ZHBtR45TV3eAfl4nsa3wXnoBYto';
         
-        document.getElementById('login-form').addEventListener('submit', (e) => {
-            e.preventDefault();
-            const id = barcodeInput.value;
-            const pass = document.getElementById('password').value;
-            
-            if (users[id] && users[id].password === pass) {
-                currentUser = { id, ...users[id] };
-                if (currentUser.role === 'admin') {
-                    showAdmin();
-                } else {
-                    showApp();
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        let currentUser = null;
+        let localConfig = {};
+
+        // --- INITIALISATION ---
+        async function init() {
+            try {
+                // Charger la config depuis Supabase
+                const { data: configRows, error } = await supabase.from('config').select('*');
+                if (error) throw error;
+                
+                if (configRows) {
+                    localConfig = {};
+                    configRows.forEach(row => localConfig[row.key] = row.value);
+                    applyConfig();
                 }
+            } catch (err) {
+                console.error("Erreur de chargement config:", err);
+                // Fallback si la table n'existe pas encore
+                applyConfig(); 
+            }
+        }
+
+        function applyConfig() {
+            const r = document.documentElement.style;
+            r.setProperty('--primary', localConfig.primary_color || '#2c3e50');
+            r.setProperty('--accent', localConfig.accent_color || '#e74c3c');
+            r.setProperty('--bg', localConfig.bg_color || '#f4f7f6');
+            r.setProperty('--card', localConfig.card_color || '#ffffff');
+            r.setProperty('--card-radius', (localConfig.card_radius || '10') + 'px');
+            
+            // Layout
+            const feed = document.getElementById('feed-container');
+            if(feed) {
+                feed.className = ''; // Reset
+                feed.classList.add('layout-' + (localConfig.layout_mode || 'grid'));
+            }
+
+            // Header Image
+            const header = document.getElementById('app-header');
+            if (localConfig.header_image) {
+                header.style.backgroundImage = `url(${localConfig.header_image})`;
+                header.classList.add('has-image');
             } else {
-                const err = document.getElementById('login-error');
-                err.textContent = "Identifiant ou mot de passe incorrect";
-                err.style.display = 'block';
+                header.style.backgroundImage = 'none';
+                header.classList.remove('has-image');
+            }
+
+            // Textes
+            const title = localConfig.site_title || 'Ma Communauté';
+            document.getElementById('app-site-title').textContent = title;
+            document.getElementById('login-title').textContent = title;
+            
+            // Remplir les inputs admin
+            document.getElementById('cfg-primary').value = localConfig.primary_color || '#2c3e50';
+            document.getElementById('cfg-accent').value = localConfig.accent_color || '#e74c3c';
+            document.getElementById('cfg-bg').value = localConfig.bg_color || '#f4f7f6';
+            document.getElementById('cfg-card').value = localConfig.card_color || '#ffffff';
+            document.getElementById('cfg-layout').value = localConfig.layout_mode || 'grid';
+            document.getElementById('cfg-radius').value = localConfig.card_radius || 10;
+            document.getElementById('cfg-title').value = localConfig.site_title || '';
+        }
+
+        // --- AUTHENTIFICATION ---
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const id = document.getElementById('scan-input').value;
+            const pass = document.getElementById('pass-input').value;
+            const msg = document.getElementById('login-msg');
+            msg.style.display = 'none';
+
+            try {
+                const { data, error } = await supabase.from('users').select('*').eq('id', id).single();
+                
+                if (error || !data) {
+                    msg.textContent = "Identifiant inconnu";
+                    msg.style.display = 'block';
+                    return;
+                }
+
+                if (data.password === pass) {
+                    currentUser = data;
+                    document.getElementById('login-screen').style.display = 'none';
+                    if (data.role === 'admin') {
+                        document.getElementById('admin-panel').style.display = 'block';
+                        loadAdminData();
+                    } else {
+                        document.getElementById('user-app').style.display = 'block';
+                        document.getElementById('app-welcome-msg').textContent = `Bonjour, ${data.name}`;
+                        renderFeed();
+                    }
+                } else {
+                    msg.textContent = "Mot de passe incorrect";
+                    msg.style.display = 'block';
+                }
+            } catch (err) {
+                msg.textContent = "Erreur de connexion: " + err.message;
+                msg.style.display = 'block';
             }
         });
 
-        function startCamera() {
-            document.getElementById('camera-modal').style.display = 'flex';
-            html5QrCode = new Html5Qrcode("reader");
-            html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, (text) => {
-                stopCamera();
-                barcodeInput.value = text.replace(/[^a-zA-Z0-9]/g, '');
-                document.getElementById('password').disabled = false;
-                document.getElementById('btn-login').disabled = false;
-                document.getElementById('password').focus();
-            }).catch(err => console.error(err));
-        }
+        function logout() { location.reload(); }
 
-        function stopCamera() {
-            if (html5QrCode) {
-                html5QrCode.stop().then(() => {
-                    document.getElementById('camera-modal').style.display = 'none';
-                });
+        // --- SCAN CAMERA ---
+        let scanner = null;
+        function startScan() {
+            document.getElementById('scan-modal').style.display = 'flex';
+            scanner = new Html5Qrcode("reader");
+            scanner.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, (text) => {
+                stopScan();
+                document.getElementById('scan-input').value = text.replace(/[^a-zA-Z0-9]/g, '');
+                document.getElementById('pass-input').disabled = false;
+                document.querySelector('#login-form button').disabled = false;
+                document.getElementById('pass-input').focus();
+            }).catch(e => {
+                console.error(e);
+                alert("Erreur caméra: " + e);
+            });
+        }
+        function stopScan() {
+            if(scanner) { 
+                scanner.stop().then(() => {
+                    document.getElementById('scan-modal').style.display = 'none';
+                }).catch(err => console.error(err));
             }
-        }
-
-        // --- NAVIGATION ---
-        function showAdmin() {
-            document.getElementById('login-screen').style.display = 'none';
-            document.getElementById('app-screen').style.display = 'none';
-            document.getElementById('admin-screen').style.display = 'block';
-            refreshAdmin();
-        }
-
-        function showApp() {
-            document.getElementById('login-screen').style.display = 'none';
-            document.getElementById('admin-screen').style.display = 'none';
-            document.getElementById('app-screen').style.display = 'block';
-            document.getElementById('user-welcome').textContent = `Bonjour, ${currentUser.name}`;
-            renderFeed();
-        }
-
-        function logout() {
-            location.reload();
         }
 
         // --- ADMIN FUNCTIONS ---
-        function refreshAdmin() {
-            // Stats
-            document.getElementById('stat-users').textContent = Object.keys(users).length;
-            document.getElementById('stat-posts').textContent = posts.length;
+        function showAdminTab(tabId) {
+            document.querySelectorAll('.admin-section').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.admin-tab').forEach(el => el.classList.remove('active'));
+            document.getElementById('tab-' + tabId).classList.add('active');
+            event.target.classList.add('active');
+            if(tabId === 'users' || tabId === 'posts') loadAdminData();
+        }
 
-            // Liste Utilisateurs
-            const uList = document.getElementById('users-list');
+        async function loadAdminData() {
+            // Users
+            const { data: users, error: uErr } = await supabase.from('users').select('*');
+            if(uErr) return console.error(uErr);
+            
+            const uList = document.getElementById('admin-users-list');
             uList.innerHTML = '';
-            for (const [id, u] of Object.entries(users)) {
-                const li = document.createElement('li');
-                li.className = 'data-item';
-                li.innerHTML = `
-                    <div class="data-info">
-                        <span class="data-name">${u.name} <small style="color:#999">(${id})</small></span>
-                        <span class="data-meta">Rôle: ${u.role || 'user'}</span>
-                    </div>
-                    ${id !== 'admin' ? `<button class="btn btn-danger btn-sm" onclick="deleteUser('${id}')">Supprimer</button>` : ''}
-                `;
-                uList.appendChild(li);
-            }
+            users.forEach(u => {
+                uList.innerHTML += `
+                    <div class="card" style="display:flex; justify-content:space-between; align-items:center;">
+                        <div><strong>${u.name}</strong> <small>(${u.id})</small><br><small>${u.role}</small></div>
+                        ${u.id !== 'admin' ? `<button onclick="deleteUser('${u.id}')" class="btn btn-danger btn-sm">Supprimer</button>` : ''}
+                    </div>`;
+            });
 
-            // Liste Posts
-            const pList = document.getElementById('posts-list');
+            // Posts
+            const { data: posts, error: pErr } = await supabase.from('posts').select('*').order('created_at', {ascending:false});
+            if(pErr) return console.error(pErr);
+
+            const pList = document.getElementById('admin-posts-list');
             pList.innerHTML = '';
-            posts.slice().reverse().forEach((p, index) => {
-                const li = document.createElement('li');
-                li.className = 'data-item';
-                const preview = p.type === 'photo' ? '📷 Photo' : '💬 Citation: ' + p.content.substring(0, 30) + '...';
-                li.innerHTML = `
-                    <div class="data-info">
-                        <span class="data-name">${p.authorName}</span>
-                        <span class="data-meta">${new Date(p.date).toLocaleDateString()} - ${preview}</span>
-                    </div>
-                    <button class="btn btn-danger btn-sm" onclick="deletePost(${index})">Supprimer</button>
-                `;
-                pList.appendChild(li);
+            if(posts.length === 0) pList.innerHTML = '<p>Aucune publication.</p>';
+            
+            posts.forEach(p => {
+                pList.innerHTML += `
+                    <div class="card" style="display:flex; justify-content:space-between; align-items:center;">
+                        <div>
+                            <strong>${p.author_name}</strong> <small>${new Date(p.created_at).toLocaleDateString()}</small><br>
+                            <small>${p.type === 'photo' ? '📷 Photo' : '💬 ' + (p.content ? p.content.substring(0,50) : '')}</small>
+                        </div>
+                        <button onclick="deletePost(${p.id})" class="btn btn-danger btn-sm">Supprimer</button>
+                    </div>`;
             });
         }
 
-        function showAddUserForm() { document.getElementById('add-user-form').classList.remove('hidden'); }
-        function hideAddUserForm() { document.getElementById('add-user-form').classList.add('hidden'); }
+        async function addUser() {
+            const id = document.getElementById('new-u-id').value.trim();
+            const name = document.getElementById('new-u-name').value.trim();
+            const pass = document.getElementById('new-u-pass').value.trim();
+            if(!id || !name || !pass) return alert("Remplissez tous les champs");
 
-        function addUser() {
-            const id = document.getElementById('new-user-id').value.trim();
-            const name = document.getElementById('new-user-name').value.trim();
-            const pass = document.getElementById('new-user-pass').value.trim();
-
-            if (!id || !name || !pass) return alert("Tous les champs sont requis");
-            if (users[id]) return alert("Cet identifiant existe déjà");
-
-            users[id] = { name, password: pass, role: 'user' };
-            saveData('community_users', users);
-            hideAddUserForm();
-            document.getElementById('new-user-id').value = '';
-            document.getElementById('new-user-name').value = '';
-            document.getElementById('new-user-pass').value = '';
-            alert("Utilisateur ajouté !");
-        }
-
-        function deleteUser(id) {
-            if (confirm("Supprimer cet utilisateur ?")) {
-                delete users[id];
-                saveData('community_users', users);
-            }
-        }
-
-        function deletePost(index) {
-            if (confirm("Supprimer cette publication ?")) {
-                // L'index est inversé car on affiche en reverse, donc on recalcul l'index réel
-                const realIndex = posts.length - 1 - index;
-                posts.splice(realIndex, 1);
-                saveData('community_posts', posts);
-            }
-        }
-
-        function saveConfig() {
-            config.title = document.getElementById('conf-site-title').value;
-            config.primary = document.getElementById('conf-color-primary').value;
-            config.accent = document.getElementById('conf-color-accent').value;
-            saveData('community_config', config);
-            applyConfig();
-        }
-
-        function resetConfig() {
-            if(confirm("Réinitialiser les couleurs et le titre ?")) {
-                saveData('community_config', DEFAULT_CONFIG);
-                applyConfig();
-            }
-        }
-
-        // --- USER APP FUNCTIONS ---
-        function switchView(view) {
-            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-            event.target.classList.add('active');
-            
-            if (view === 'publish') {
-                document.getElementById('view-publish').classList.remove('hidden');
-                document.getElementById('feed-container').innerHTML = '';
+            const { error } = await supabase.from('users').insert([{id, name, password:pass, role:'user'}]);
+            if(error) {
+                alert("Erreur: " + error.message);
             } else {
-                document.getElementById('view-publish').classList.add('hidden');
+                alert("Utilisateur ajouté !");
+                loadAdminData();
+                document.getElementById('new-u-id').value = '';
+                document.getElementById('new-u-name').value = '';
+                document.getElementById('new-u-pass').value = '';
+            }
+        }
+
+        async function deleteUser(id) {
+            if(confirm("Supprimer cet utilisateur ?")) {
+                const { error } = await supabase.from('users').delete().eq('id', id);
+                if(error) alert("Erreur: " + error.message);
+                else loadAdminData();
+            }
+        }
+
+        async function deletePost(id) {
+            if(confirm("Supprimer ce post ?")) {
+                const { error } = await supabase.from('posts').delete().eq('id', id);
+                if(error) alert("Erreur: " + error.message);
+                else loadAdminData();
+            }
+        }
+
+        // --- CONFIG & DESIGN ---
+        function previewConfig() {
+            const r = document.documentElement.style;
+            r.setProperty('--primary', document.getElementById('cfg-primary').value);
+            r.setProperty('--accent', document.getElementById('cfg-accent').value);
+            r.setProperty('--bg', document.getElementById('cfg-bg').value);
+            r.setProperty('--card', document.getElementById('cfg-card').value);
+            r.setProperty('--card-radius', document.getElementById('cfg-radius').value + 'px');
+            
+            const feed = document.getElementById('feed-container');
+            if(feed) feed.className = 'layout-' + document.getElementById('cfg-layout').value;
+            
+            document.getElementById('app-site-title').textContent = document.getElementById('cfg-title').value;
+        }
+
+        async function uploadHeaderImage() {
+            const file = document.getElementById('cfg-header-file').files[0];
+            if(!file) return;
+            
+            const fileName = `header_${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
+            const { data, error } = await supabase.storage.from('uploads').upload(fileName, file);
+            
+            if(error) {
+                alert("Erreur upload: " + error.message);
+                return;
+            }
+            
+            const { data: { publicUrl } } = supabase.storage.from('uploads').getPublicUrl(fileName);
+            document.getElementById('header-preview').textContent = "Image uploadée ! Prête à sauvegarder.";
+            localConfig.header_image = publicUrl; // Temporaire pour save
+        }
+
+        async function saveConfig() {
+            const updates = [
+                supabase.from('config').upsert({key:'primary_color', value:document.getElementById('cfg-primary').value}),
+                supabase.from('config').upsert({key:'accent_color', value:document.getElementById('cfg-accent').value}),
+                supabase.from('config').upsert({key:'bg_color', value:document.getElementById('cfg-bg').value}),
+                supabase.from('config').upsert({key:'card_color', value:document.getElementById('cfg-card').value}),
+                supabase.from('config').upsert({key:'layout_mode', value:document.getElementById('cfg-layout').value}),
+                supabase.from('config').upsert({key:'card_radius', value:document.getElementById('cfg-radius').value}),
+                supabase.from('config').upsert({key:'site_title', value:document.getElementById('cfg-title').value}),
+            ];
+            if(localConfig.header_image) {
+                updates.push(supabase.from('config').upsert({key:'header_image', value:localConfig.header_image}));
+            }
+
+            const results = await Promise.all(updates);
+            const hasError = results.some(r => r.error);
+            
+            if(hasError) {
+                alert("Erreur lors de la sauvegarde. Vérifiez la console.");
+                console.error(results);
+            } else {
+                alert("Design sauvegardé ! Les changements sont visibles par tous.");
+                init(); // Recharger la config
+            }
+        }
+
+        // --- USER APP ---
+        function togglePublish() {
+            document.getElementById('publish-area').classList.toggle('hidden');
+        }
+        function togglePubFields() {
+            const type = document.getElementById('pub-type').value;
+            document.getElementById('pub-photo-field').style.display = type === 'photo' ? 'block' : 'none';
+            document.getElementById('pub-quote-field').style.display = type === 'quote' ? 'block' : 'none';
+        }
+
+        async function submitPost() {
+            const type = document.getElementById('pub-type').value;
+            let content = '', imgUrl = '', caption = '', cited = '', citedName = null;
+
+            if(type === 'photo') {
+                const file = document.getElementById('pub-file').files[0];
+                if(!file) return alert("Image requise");
+                caption = document.getElementById('pub-caption').value;
+                
+                // Upload Image
+                const fileName = `post_${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
+                const { error } = await supabase.storage.from('uploads').upload(fileName, file);
+                if(error) return alert("Erreur upload image: " + error.message);
+                
+                const { data: { publicUrl } } = supabase.storage.from('uploads').getPublicUrl(fileName);
+                imgUrl = publicUrl;
+                content = imgUrl;
+            } else {
+                content = document.getElementById('pub-text').value;
+                cited = document.getElementById('pub-cited').value.trim();
+                if(!content) return alert("Texte requis");
+                
+                if(cited) {
+                    const { data: userData } = await supabase.from('users').select('name').eq('id', cited).single();
+                    if(userData) citedName = userData.name;
+                    else return alert("L'ID cité n'existe pas");
+                }
+            }
+
+            // Insert Post
+            const { error } = await supabase.from('posts').insert([{
+                author_id: currentUser.id,
+                author_name: currentUser.name,
+                type,
+                content,
+                caption,
+                cited_id: cited || null,
+                cited_name: citedName
+            }]);
+
+            if(error) alert("Erreur publication: " + error.message);
+            else {
+                alert("Publié !");
+                togglePublish();
+                document.getElementById('pub-file').value = '';
+                document.getElementById('pub-caption').value = '';
+                document.getElementById('pub-text').value = '';
+                document.getElementById('pub-cited').value = '';
                 renderFeed();
             }
         }
 
-        function submitPost() {
-            const type = document.getElementById('pub-type').value;
-            const newPost = {
-                id: Date.now(),
-                type,
-                authorName: currentUser.name,
-                date: new Date().toISOString(),
-                content: '',
-                caption: '',
-                citedName: null
-            };
-
-            if (type === 'photo') {
-                const file = document.getElementById('pub-file').files[0];
-                if (!file) return alert("Image requise");
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    newPost.content = e.target.result;
-                    newPost.caption = document.getElementById('pub-caption').value;
-                    finalizePost(newPost);
-                };
-                reader.readAsDataURL(file);
-            } else {
-                const text = document.getElementById('pub-text').value;
-                const citedId = document.getElementById('pub-cited-id').value.trim();
-                if (!text) return alert("Texte requis");
-                if (citedId && !users[citedId]) return alert("ID cité inexistant");
-                
-                newPost.content = text;
-                if (citedId) newPost.citedName = users[citedId].name;
-                finalizePost(newPost);
-            }
-        }
-
-        function finalizePost(post) {
-            posts.unshift(post);
-            saveData('community_posts', posts);
-            alert("Publié !");
-            document.getElementById('pub-text').value = '';
-            document.getElementById('pub-caption').value = '';
-            document.getElementById('pub-file').value = '';
-            switchView('feed');
-        }
-
-        function renderFeed() {
+        async function renderFeed() {
             const container = document.getElementById('feed-container');
-            container.innerHTML = '';
-            if (posts.length === 0) {
-                container.innerHTML = '<div style="text-align:center; color:#999; padding:20px;">Aucun contenu.</div>';
+            container.innerHTML = '<div class="loading">Chargement des publications...</div>';
+            
+            const { data: posts, error } = await supabase.from('posts').select('*').order('created_at', {ascending:false});
+            
+            if(error) {
+                container.innerHTML = '<p style="color:red">Erreur de chargement: ' + error.message + '</p>';
                 return;
             }
+
+            container.innerHTML = '';
+            
+            if(posts.length === 0) {
+                container.innerHTML = '<p style="text-align:center; grid-column: 1/-1;">Aucune publication pour le moment.</p>';
+                return;
+            }
+
             posts.forEach(p => {
-                const div = document.createElement('div');
-                div.className = 'feed-item';
-                let content = p.type === 'photo' 
-                    ? `<img src="${p.content}" class="post-img"><p>${p.caption}</p>`
-                    : `<div class="post-quote">"${p.content}"</div>${p.citedName ? `<small>Cité: ${p.citedName}</small>`:''}`;
-                
-                div.innerHTML = `<div style="display:flex; justify-content:space-between; margin-bottom:10px;"><strong>${p.authorName}</strong><small>${new Date(p.date).toLocaleDateString()}</small></div>${content}`;
-                container.appendChild(div);
+                let html = `<div class="card"><div style="display:flex; justify-content:space-between; margin-bottom:10px;"><strong>${p.author_name}</strong><small>${new Date(p.created_at).toLocaleDateString()}</small></div>`;
+                if(p.type === 'photo') {
+                    html += `<img src="${p.content}" class="post-img"><p>${p.caption || ''}</p>`;
+                } else {
+                    html += `<div class="quote-box">"${p.content}"</div>`;
+                    if(p.cited_name) html += `<p style="text-align:right; margin-top:10px; font-size:0.9rem; color:var(--primary);">- Cité: <strong>${p.cited_name}</strong></p>`;
+                }
+                html += `</div>`;
+                container.innerHTML += html;
             });
         }
 
-        // Init
-        applyConfig();
+        // Start
+        init();
     </script>
 </body>
 </html>
