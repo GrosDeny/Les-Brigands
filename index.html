@@ -3,30 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Communauté Pro</title>
-    <!-- Scripts chargés en ASYNC pour ne jamais bloquer la page -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" async></script>
-    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js" async></script>
+    <title>Communauté Pro - Sans CDN</title>
     <style>
         :root { --primary:#2c3e50; --accent:#e74c3c; --success:#27ae60; --bg:#f4f7f6; --card:#fff; --text:#333; --radius:10px; }
         body { font-family:'Segoe UI',sans-serif; background:var(--bg); margin:0; color:var(--text); display:flex; justify-content:center; align-items:center; min-height:100vh; }
         .box { background:var(--card); padding:2rem; border-radius:var(--radius); box-shadow:0 10px 25px rgba(0,0,0,.1); width:100%; max-width:440px; }
         h2 { color:var(--primary); margin-top:0; text-align:center; }
-        .grp { margin-bottom:15px; position:relative; }
+        .grp { margin-bottom:15px; }
         label { display:block; margin-bottom:6px; font-weight:600; font-size:.9rem; }
-        input { width:100%; padding:12px; border:2px solid #ddd; border-radius:8px; box-sizing:border-box; font-size:1rem; }
-        input:focus { outline:none; border-color:var(--primary); }
-        .cam { position:absolute; right:8px; top:38px; background:var(--primary); color:#fff; border:none; width:36px; height:36px; border-radius:50%; cursor:pointer; font-size:1.1rem; }
+        input, select, textarea { width:100%; padding:12px; border:2px solid #ddd; border-radius:8px; box-sizing:border-box; font-size:1rem; }
+        input:focus, select:focus, textarea:focus { outline:none; border-color:var(--primary); }
         .submit { width:100%; padding:14px; background:var(--primary); color:#fff; border:none; border-radius:8px; font-size:1rem; font-weight:bold; cursor:pointer; }
         .submit:disabled { background:#bdc3c7; cursor:not-allowed; }
         .alive { background:#d5f5e3; color:#196f3d; padding:8px; border-radius:6px; font-size:.8rem; text-align:center; margin-bottom:15px; }
         .diag { font-size:.8rem; background:#f8f9fa; border-radius:6px; padding:12px; margin-top:15px; line-height:1.6; }
-        .diag b { color:var(--primary); }
-        .ok { color:var(--success); } .ko { color:var(--accent); } .wa { color:#e67e22; }
-        .test-btn { width:100%; margin-top:10px; padding:10px; background:#3498db; color:#fff; border:none; border-radius:6px; cursor:pointer; font-size:.9rem; }
-        #cam-modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,.9); z-index:2000; flex-direction:column; justify-content:center; align-items:center; padding:20px; }
-        #reader { width:100%; max-width:480px; background:#fff; border-radius:10px; }
-        .close { margin-top:15px; background:var(--accent); color:#fff; border:none; padding:10px 25px; border-radius:30px; cursor:pointer; font-weight:bold; }
+        .ok { color:var(--success); } .ko { color:var(--accent); }
         #app { display:none; max-width:900px; margin:20px auto; padding:20px; width:100%; }
         .hdr { background:var(--primary); color:#fff; padding:20px; border-radius:var(--radius); text-align:center; margin-bottom:20px; }
         .card { background:var(--card); padding:18px; border-radius:var(--radius); box-shadow:0 2px 6px rgba(0,0,0,.05); margin-bottom:15px; }
@@ -42,24 +33,20 @@
 <body>
 
 <div class="box" id="login-screen">
-    <div class="alive" id="alive-msg">⏳ Chargement du code...</div>
+    <div class="alive" id="alive-msg">✅ Code JavaScript actif (mode sans CDN)</div>
     <h2>Connexion</h2>
     <div class="grp">
         <label>Identifiant</label>
-        <input type="text" id="scan-input" placeholder="Tapez votre ID" autocomplete="off">
-        <button type="button" class="cam" onclick="startCamera()">📷</button>
+        <input type="text" id="scan-input" placeholder="Tapez votre ID (ex: admin)" autocomplete="off">
     </div>
     <div class="grp">
         <label>Mot de passe</label>
         <input type="password" id="pass-input" placeholder="Votre mot de passe">
     </div>
     <button class="submit" id="btn-submit" onclick="doLogin()">Se connecter</button>
-    <button class="test-btn" onclick="runDiagnostic()">🔧 Tester la connexion</button>
-
+    <button class="btn b-gry" style="width:100%;margin-top:10px" onclick="runDiagnostic()">🔧 Tester la connexion</button>
     <div class="diag" id="diag">
-        <b>État du système :</b><br>
-        <span id="d-lib">• Librairies : en attente...</span><br>
-        <span id="d-https">• HTTPS : en attente...</span><br>
+        <b>État :</b><br>
         <span id="d-db">• Base de données : en attente...</span><br>
         <span id="d-admin">• Compte admin : en attente...</span>
     </div>
@@ -68,66 +55,58 @@
     </div>
 </div>
 
-<div id="cam-modal">
-    <div id="reader"></div>
-    <div id="cam-status" style="color:#fff;margin:10px 0;">Initialisation...</div>
-    <button class="close" onclick="stopCamera()">Fermer</button>
-</div>
-
 <div id="app"></div>
 
 <script>
-// === PREUVE QUE LE CODE TOURNE ===
-document.getElementById('alive-msg').textContent = '✅ Code JavaScript actif';
-
 const SUPABASE_URL = 'https://vblkojfwnemmkadqkpzl.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZibGtvamZ3bmVtbWthZHFrcHpsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA5MjkyNDIsImV4cCI6MjEwNjUwNTI0Mn0.VPAKcJhwjbG3QBj7ZHBtR45TV3eAfl4nsa3wXnoBYto';
 
-let supabase = null;
 let currentUser = null;
+
+// === COUCHE API REST (aucune librairie requise) ===
+async function db(table, params = '', options = {}) {
+    const url = `${SUPABASE_URL}/rest/v1/${table}${params}`;
+    const res = await fetch(url, {
+        method: options.method || 'GET',
+        headers: {
+            'apikey': SUPABASE_KEY,
+            'Authorization': 'Bearer ' + SUPABASE_KEY,
+            'Content-Type': 'application/json',
+            'Prefer': options.prefer || ''
+        },
+        body: options.body ? JSON.stringify(options.body) : undefined
+    });
+    if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(`HTTP ${res.status}: ${txt}`);
+    }
+    if (options.method === 'DELETE') return true;
+    const text = await res.text();
+    return text ? JSON.parse(text) : null;
+}
 
 function setDiag(id, txt, cls) {
     const el = document.getElementById(id);
     if (el) { el.innerHTML = txt; el.className = cls || ''; }
 }
 
-function checkLibs() {
-    const hasSupabase = (typeof window.supabase !== 'undefined');
-    const hasScanner = (typeof Html5Qrcode !== 'undefined');
-    if (hasSupabase && hasScanner) { setDiag('d-lib', '• Librairies : <span class="ok">OK</span>', ''); return true; }
-    setDiag('d-lib', '• Librairies : <span class="wa">Pas encore chargées (réessayez le test)</span>', 'wa');
-    return false;
-}
-
-function checkHttps() {
-    const secure = (window.location.protocol === 'https:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
-    if (secure) { setDiag('d-https', '• HTTPS : <span class="ok">OK</span>', ''); return true; }
-    setDiag('d-https', '• HTTPS : <span class="wa">NON — Caméra bloquée</span>', 'wa');
-    return false;
-}
-
 async function runDiagnostic() {
     setDiag('d-db', '• Base de données : test en cours...', '');
-    if (!checkLibs()) { setDiag('d-db', '• Base de données : <span class="wa">En attente des librairies</span>', 'wa'); return; }
     try {
-        supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-        const { error } = await supabase.from('users').select('id').limit(1);
-        if (error) throw error;
-        setDiag('d-db', '• Base de données : <span class="ok">Connectée</span>', '');
-        const { data: admin } = await supabase.from('users').select('*').eq('id','admin').single();
-        if (admin) setDiag('d-admin', '• Compte admin : <span class="ok">Existe</span>', '');
-        else setDiag('d-admin', '• Compte admin : <span class="ko">ABSENT — Créez-le en SQL</span>', 'ko');
+        const data = await db('users', '?select=id&limit=1');
+        setDiag('d-db', '• Base de données : <span class="ok">Connectée ✔</span>', '');
+        const admin = await db('users', '?id=eq.admin&select=*');
+        if (admin && admin.length) setDiag('d-admin', '• Compte admin : <span class="ok">Existe ✔</span>', '');
+        else setDiag('d-admin', '• Compte admin : <span class="ko">ABSENT — créez-le en SQL</span>', 'ko');
     } catch (err) {
-        setDiag('d-db', '• Base de données : <span class="ko">ERREUR : ' + err.message + '</span>', 'ko');
+        setDiag('d-db', '• Base de données : <span class="ko">' + err.message + '</span>', 'ko');
         setDiag('d-admin', '• Compte admin : en attente', '');
+        if (err.message.includes('401') || err.message.includes('403')) {
+            setDiag('d-admin', '• ⚠️ Désactivez RLS sur vos tables dans Supabase', 'ko');
+        }
     }
 }
-
-// Lancer le diagnostic IMMÉDIATEMENT (pas d'attente de 'load')
-checkLibs();
-checkHttps();
-// Petit délai pour laisser les scripts async se charger, puis re-test
-setTimeout(runDiagnostic, 1500);
+runDiagnostic();
 document.getElementById('scan-input').focus();
 
 // === LOGIN ===
@@ -136,39 +115,21 @@ async function doLogin() {
     const pass = document.getElementById('pass-input').value.trim();
     const btn = document.getElementById('btn-submit');
     if (!id || !pass) { alert('Remplissez les deux champs.'); return; }
-    if (!supabase) { runDiagnostic(); alert('Base non connectée. Résultat du test affiché ci-dessous.'); return; }
-
     btn.disabled = true; btn.textContent = 'Connexion...';
     try {
-        const { data, error } = await supabase.from('users').select('*').eq('id', id).single();
-        if (error || !data) throw new Error('Identifiant inconnu');
-        if (data.password !== pass) throw new Error('Mot de passe incorrect');
-        currentUser = data;
+        const data = await db('users', `?id=eq.${encodeURIComponent(id)}&select=*`);
+        if (!data || !data.length) throw new Error('Identifiant inconnu');
+        if (data[0].password !== pass) throw new Error('Mot de passe incorrect');
+        currentUser = data[0];
         document.getElementById('login-screen').style.display = 'none';
         document.getElementById('app').style.display = 'block';
-        if (data.role === 'admin') renderAdmin(); else renderUser();
+        if (currentUser.role === 'admin') renderAdmin(); else renderUser();
     } catch (err) {
         alert('❌ ' + err.message);
         btn.disabled = false; btn.textContent = 'Se connecter';
     }
 }
 function logout() { location.reload(); }
-
-// === CAMÉRA ===
-let scanner = null;
-function startCamera() {
-    if (typeof Html5Qrcode === 'undefined') { alert('Librairie de scan non chargée. Réessayez.'); return; }
-    document.getElementById('cam-modal').style.display = 'flex';
-    scanner = new Html5Qrcode('reader');
-    scanner.start({ facingMode:'environment' }, { fps:10, qrbox:250 }, (t) => {
-        stopCamera();
-        document.getElementById('scan-input').value = t.replace(/[^a-zA-Z0-9]/g,'');
-    }).catch(e => { document.getElementById('cam-status').textContent = 'Erreur: ' + e; });
-}
-function stopCamera() {
-    if (scanner) { scanner.stop().catch(()=>{}); scanner = null; }
-    document.getElementById('cam-modal').style.display = 'none';
-}
 
 // === ADMIN ===
 function renderAdmin() {
@@ -194,24 +155,26 @@ function renderAdmin() {
 function tab(id) { ['u','p','d'].forEach(t => document.getElementById('t-'+t).classList.toggle('hidden', t!==id)); }
 
 async function loadAdminData() {
-    const { data: users } = await supabase.from('users').select('*');
+    const users = await db('users', '?select=*');
     document.getElementById('u-list').innerHTML = (users||[]).map(u =>
         `<div class="card" style="display:flex;justify-content:space-between"><span>${u.name} (${u.id})</span>${u.id!=='admin'?`<button class="btn b-red" onclick="delUser('${u.id}')">X</button>`:''}</div>`).join('');
-    const { data: posts } = await supabase.from('posts').select('*').order('created_at',{ascending:false});
+    const posts = await db('posts', '?select=*&order=created_at.desc');
     document.getElementById('p-list').innerHTML = (posts||[]).map(p =>
         `<div class="card" style="display:flex;justify-content:space-between"><span>${p.author_name} - ${p.type}</span><button class="btn b-red" onclick="delPost(${p.id})">X</button></div>`).join('') || '<p>Aucun post.</p>';
 }
 async function addUser() {
     const id=document.getElementById('nu-id').value, name=document.getElementById('nu-name').value, pass=document.getElementById('nu-pass').value;
     if(!id||!name||!pass) return alert('Champs requis');
-    const { error } = await supabase.from('users').insert([{id,name,password:pass,role:'user'}]);
-    if(error) alert('Erreur: '+error.message); else { alert('Ajouté !'); loadAdminData(); }
+    try {
+        await db('users', '', {method:'POST', body:{id,name,password:pass,role:'user'}, prefer:'return=minimal'});
+        alert('Ajouté !'); loadAdminData();
+    } catch(e) { alert('Erreur: '+e.message); }
 }
-async function delUser(id) { if(confirm('Supprimer ?')){ await supabase.from('users').delete().eq('id',id); loadAdminData(); } }
-async function delPost(id) { if(confirm('Supprimer ?')){ await supabase.from('posts').delete().eq('id',id); loadAdminData(); } }
+async function delUser(id) { if(confirm('Supprimer ?')){ await db('users', `?id=eq.${id}`, {method:'DELETE'}); loadAdminData(); } }
+async function delPost(id) { if(confirm('Supprimer ?')){ await db('posts', `?id=eq.${id}`, {method:'DELETE'}); loadAdminData(); } }
 async function saveCfg() {
-    await supabase.from('config').upsert({key:'primary_color',value:document.getElementById('c-p').value});
-    await supabase.from('config').upsert({key:'layout_mode',value:document.getElementById('c-l').value});
+    await db('config', '', {method:'POST', body:{key:'primary_color',value:document.getElementById('c-p').value}, prefer:'resolution=merge-duplicates'});
+    await db('config', '', {method:'POST', body:{key:'layout_mode',value:document.getElementById('c-l').value}, prefer:'resolution=merge-duplicates'});
     alert('Sauvegardé !');
 }
 
@@ -235,21 +198,31 @@ async function submitPost() {
     if(type==='photo') {
         const f = document.getElementById('p-file').files[0];
         if(!f) return alert('Image requise');
-        const fn='post_'+Date.now();
-        const {error}=await supabase.storage.from('uploads').upload(fn,f);
-        if(error) return alert('Upload: '+error.message);
-        content = supabase.storage.from('uploads').getPublicUrl(fn).data.publicUrl;
+        content = await uploadFile(f);
+        if(!content) return;
     } else {
         content = document.getElementById('p-text').value;
         const c = document.getElementById('p-cited').value.trim();
         if(!content) return alert('Texte requis');
-        if(c){ const {data}=await supabase.from('users').select('name').eq('id',c).single(); if(!data) return alert('ID cité inexistant'); citedId=c; citedName=data.name; }
+        if(c){ const u = await db('users', `?id=eq.${c}&select=name`); if(!u||!u.length) return alert('ID cité inexistant'); citedId=c; citedName=u[0].name; }
     }
-    const { error } = await supabase.from('posts').insert([{author_id:currentUser.id,author_name:currentUser.name,type,content,cited_id:citedId,cited_name:citedName}]);
-    if(error) alert('Erreur: '+error.message); else { alert('Publié !'); document.getElementById('pz').classList.add('hidden'); renderFeed(); }
+    try {
+        await db('posts', '', {method:'POST', body:{author_id:currentUser.id,author_name:currentUser.name,type,content,cited_id:citedId,cited_name:citedName}, prefer:'return=minimal'});
+        alert('Publié !'); document.getElementById('pz').classList.add('hidden'); renderFeed();
+    } catch(e) { alert('Erreur: '+e.message); }
+}
+// Upload via API Storage REST (multipart)
+async function uploadFile(file) {
+    const fn = 'post_' + Date.now() + '_' + file.name.replace(/[^a-zA-Z0-9.]/g,'_');
+    const fd = new FormData(); fd.append('file', file);
+    const res = await fetch(`${SUPABASE_URL}/storage/v1/object/uploads/${fn}`, {
+        method:'POST', headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY}, body:fd
+    });
+    if(!res.ok) { alert('Upload erreur: '+(await res.text())); return null; }
+    return `${SUPABASE_URL}/storage/v1/object/public/uploads/${fn}`;
 }
 async function renderFeed() {
-    const { data } = await supabase.from('posts').select('*').order('created_at',{ascending:false});
+    const data = await db('posts', '?select=*&order=created_at.desc');
     document.getElementById('feed').innerHTML = (data||[]).map(p => {
         const body = p.type==='photo' ? `<img src="${p.content}" class="post-img">` : `<div class="quote">"${p.content}"</div>${p.cited_name?`<div style="text-align:right;color:var(--primary)">- Cité: ${p.cited_name}</div>`:''}`;
         return `<div class="card"><div style="display:flex;justify-content:space-between"><strong>${p.author_name}</strong><small>${new Date(p.created_at).toLocaleDateString()}</small></div>${body}</div>`;
