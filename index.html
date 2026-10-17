@@ -4,8 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Communauté Pro</title>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    <!-- Scripts chargés en ASYNC pour ne jamais bloquer la page -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" async></script>
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js" async></script>
     <style>
         :root { --primary:#2c3e50; --accent:#e74c3c; --success:#27ae60; --bg:#f4f7f6; --card:#fff; --text:#333; --radius:10px; }
         body { font-family:'Segoe UI',sans-serif; background:var(--bg); margin:0; color:var(--text); display:flex; justify-content:center; align-items:center; min-height:100vh; }
@@ -18,6 +19,7 @@
         .cam { position:absolute; right:8px; top:38px; background:var(--primary); color:#fff; border:none; width:36px; height:36px; border-radius:50%; cursor:pointer; font-size:1.1rem; }
         .submit { width:100%; padding:14px; background:var(--primary); color:#fff; border:none; border-radius:8px; font-size:1rem; font-weight:bold; cursor:pointer; }
         .submit:disabled { background:#bdc3c7; cursor:not-allowed; }
+        .alive { background:#d5f5e3; color:#196f3d; padding:8px; border-radius:6px; font-size:.8rem; text-align:center; margin-bottom:15px; }
         .diag { font-size:.8rem; background:#f8f9fa; border-radius:6px; padding:12px; margin-top:15px; line-height:1.6; }
         .diag b { color:var(--primary); }
         .ok { color:var(--success); } .ko { color:var(--accent); } .wa { color:#e67e22; }
@@ -40,6 +42,7 @@
 <body>
 
 <div class="box" id="login-screen">
+    <div class="alive" id="alive-msg">⏳ Chargement du code...</div>
     <h2>Connexion</h2>
     <div class="grp">
         <label>Identifiant</label>
@@ -51,7 +54,6 @@
         <input type="password" id="pass-input" placeholder="Votre mot de passe">
     </div>
     <button class="submit" id="btn-submit" onclick="doLogin()">Se connecter</button>
-
     <button class="test-btn" onclick="runDiagnostic()">🔧 Tester la connexion</button>
 
     <div class="diag" id="diag">
@@ -75,29 +77,26 @@
 <div id="app"></div>
 
 <script>
+// === PREUVE QUE LE CODE TOURNE ===
+document.getElementById('alive-msg').textContent = '✅ Code JavaScript actif';
+
 const SUPABASE_URL = 'https://vblkojfwnemmkadqkpzl.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZibGtvamZ3bmVtbWthZHFrcHpsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA5MjkyNDIsImV4cCI6MjEwNjUwNTI0Mn0.VPAKcJhwjbG3QBj7ZHBtR45TV3eAfl4nsa3wXnoBYto';
 
 let supabase = null;
 let currentUser = null;
 
-// Vérification immédiate des librairies
 function setDiag(id, txt, cls) {
     const el = document.getElementById(id);
-    el.innerHTML = txt;
-    el.className = cls;
+    if (el) { el.innerHTML = txt; el.className = cls || ''; }
 }
 
 function checkLibs() {
     const hasSupabase = (typeof window.supabase !== 'undefined');
     const hasScanner = (typeof Html5Qrcode !== 'undefined');
-    if (hasSupabase && hasScanner) {
-        setDiag('d-lib', '• Librairies : <span class="ok">OK</span>', '');
-        return true;
-    } else {
-        setDiag('d-lib', '• Librairies : <span class="ko">ÉCHEC — Scripts bloqués (bloqueur de pub ?)</span>', 'ko');
-        return false;
-    }
+    if (hasSupabase && hasScanner) { setDiag('d-lib', '• Librairies : <span class="ok">OK</span>', ''); return true; }
+    setDiag('d-lib', '• Librairies : <span class="wa">Pas encore chargées (réessayez le test)</span>', 'wa');
+    return false;
 }
 
 function checkHttps() {
@@ -109,13 +108,12 @@ function checkHttps() {
 
 async function runDiagnostic() {
     setDiag('d-db', '• Base de données : test en cours...', '');
-    if (!checkLibs()) { setDiag('d-db', '• Base de données : <span class="ko">Impossible (librairies absentes)</span>', 'ko'); return; }
+    if (!checkLibs()) { setDiag('d-db', '• Base de données : <span class="wa">En attente des librairies</span>', 'wa'); return; }
     try {
         supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-        const { data, error } = await supabase.from('users').select('id').limit(1);
+        const { error } = await supabase.from('users').select('id').limit(1);
         if (error) throw error;
         setDiag('d-db', '• Base de données : <span class="ok">Connectée</span>', '');
-        // Test admin
         const { data: admin } = await supabase.from('users').select('*').eq('id','admin').single();
         if (admin) setDiag('d-admin', '• Compte admin : <span class="ok">Existe</span>', '');
         else setDiag('d-admin', '• Compte admin : <span class="ko">ABSENT — Créez-le en SQL</span>', 'ko');
@@ -125,13 +123,12 @@ async function runDiagnostic() {
     }
 }
 
-// Lancer les checks au chargement
-window.addEventListener('load', () => {
-    checkLibs();
-    checkHttps();
-    runDiagnostic();
-    document.getElementById('scan-input').focus();
-});
+// Lancer le diagnostic IMMÉDIATEMENT (pas d'attente de 'load')
+checkLibs();
+checkHttps();
+// Petit délai pour laisser les scripts async se charger, puis re-test
+setTimeout(runDiagnostic, 1500);
+document.getElementById('scan-input').focus();
 
 // === LOGIN ===
 async function doLogin() {
@@ -139,7 +136,7 @@ async function doLogin() {
     const pass = document.getElementById('pass-input').value.trim();
     const btn = document.getElementById('btn-submit');
     if (!id || !pass) { alert('Remplissez les deux champs.'); return; }
-    if (!supabase) { alert('Base de données non connectée. Cliquez sur "Tester la connexion".'); return; }
+    if (!supabase) { runDiagnostic(); alert('Base non connectée. Résultat du test affiché ci-dessous.'); return; }
 
     btn.disabled = true; btn.textContent = 'Connexion...';
     try {
@@ -160,7 +157,7 @@ function logout() { location.reload(); }
 // === CAMÉRA ===
 let scanner = null;
 function startCamera() {
-    if (typeof Html5Qrcode === 'undefined') { alert('Librairie de scan non chargée.'); return; }
+    if (typeof Html5Qrcode === 'undefined') { alert('Librairie de scan non chargée. Réessayez.'); return; }
     document.getElementById('cam-modal').style.display = 'flex';
     scanner = new Html5Qrcode('reader');
     scanner.start({ facingMode:'environment' }, { fps:10, qrbox:250 }, (t) => {
@@ -205,7 +202,7 @@ async function loadAdminData() {
         `<div class="card" style="display:flex;justify-content:space-between"><span>${p.author_name} - ${p.type}</span><button class="btn b-red" onclick="delPost(${p.id})">X</button></div>`).join('') || '<p>Aucun post.</p>';
 }
 async function addUser() {
-    const id=nu_id.value, name=nu_name.value, pass=nu_pass.value;
+    const id=document.getElementById('nu-id').value, name=document.getElementById('nu-name').value, pass=document.getElementById('nu-pass').value;
     if(!id||!name||!pass) return alert('Champs requis');
     const { error } = await supabase.from('users').insert([{id,name,password:pass,role:'user'}]);
     if(error) alert('Erreur: '+error.message); else { alert('Ajouté !'); loadAdminData(); }
@@ -213,8 +210,8 @@ async function addUser() {
 async function delUser(id) { if(confirm('Supprimer ?')){ await supabase.from('users').delete().eq('id',id); loadAdminData(); } }
 async function delPost(id) { if(confirm('Supprimer ?')){ await supabase.from('posts').delete().eq('id',id); loadAdminData(); } }
 async function saveCfg() {
-    await supabase.from('config').upsert({key:'primary_color',value:c_p.value});
-    await supabase.from('config').upsert({key:'layout_mode',value:c_l.value});
+    await supabase.from('config').upsert({key:'primary_color',value:document.getElementById('c-p').value});
+    await supabase.from('config').upsert({key:'layout_mode',value:document.getElementById('c-l').value});
     alert('Sauvegardé !');
 }
 
@@ -234,7 +231,7 @@ function renderUser() {
     renderFeed();
 }
 async function submitPost() {
-    const type = pt.value; let content='', citedName=null, citedId=null;
+    const type = document.getElementById('pt').value; let content='', citedName=null, citedId=null;
     if(type==='photo') {
         const f = document.getElementById('p-file').files[0];
         if(!f) return alert('Image requise');
