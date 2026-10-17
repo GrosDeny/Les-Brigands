@@ -3,382 +3,261 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Communauté Pro - Diagnostic</title>
-    <!-- Supabase JS -->
+    <title>Communauté Pro</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <!-- Scanner Code Barres (CDN alternatif plus stable) -->
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-    
     <style>
-        :root {
-            --primary: #2c3e50; --accent: #e74c3c; --bg: #f4f7f6; --card: #ffffff; --text: #333; --card-radius: 10px;
-        }
-        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; color: var(--text); display: flex; justify-content: center; align-items: center; min-height: 100vh; }
-        
-        .login-box { background: var(--card); padding: 2.5rem; border-radius: var(--card-radius); box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 100%; max-width: 420px; text-align: center; }
-        h2 { color: var(--primary); margin-top: 0; }
-        
-        .input-group { margin-bottom: 20px; text-align: left; position: relative; }
-        label { display: block; margin-bottom: 8px; font-weight: 600; font-size: 0.9rem; }
-        input { width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 1rem; }
-        input:focus { outline: none; border-color: var(--primary); }
-        
-        .scan-btn {
-            position: absolute; right: 10px; top: 42px;
-            background: var(--primary); color: white; border: none;
-            width: 38px; height: 38px; border-radius: 50%;
-            cursor: pointer; display: flex; align-items: center; justify-content: center;
-            font-size: 1.2rem; z-index: 10;
-        }
-        .scan-btn:disabled { background: #ccc; cursor: not-allowed; }
-        
-        .btn-submit {
-            width: 100%; padding: 14px; background: var(--primary); color: white;
-            border: none; border-radius: 8px; font-size: 1rem; font-weight: bold;
-            cursor: pointer; transition: 0.3s; opacity: 0.5; pointer-events: none;
-        }
-        .btn-submit.active { opacity: 1; pointer-events: all; }
-        .btn-submit:hover { background: #34495e; }
-        
-        .msg-box { padding: 10px; border-radius: 6px; font-size: 0.9rem; margin-bottom: 15px; display: none; text-align: left; }
-        .error { background: #fadbd8; color: #c0392b; border: 1px solid #f5b7b1; }
-        .info { background: #ebf5fb; color: #2c3e50; border: 1px solid #d6eaf8; }
-        .warning { background: #fef9e7; color: #f1c40f; border: 1px solid #f9e79f; }
-        
-        #camera-modal {
-            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.9); z-index: 2000;
-            flex-direction: column; justify-content: center; align-items: center; padding: 20px;
-        }
-        #reader { width: 100%; max-width: 500px; background: white; border-radius: 10px; }
-        .close-cam { margin-top: 20px; background: var(--accent); color: white; border: none; padding: 12px 30px; border-radius: 30px; cursor: pointer; font-weight: bold; }
-
-        /* Styles pour le reste de l'app (cachés par défaut) */
-        #admin-panel, #user-app { display: none; width: 100%; max-width: 1200px; margin: 20px auto; padding: 20px; box-sizing: border-box; }
-        .dynamic-header { background: var(--primary); color: white; padding: 20px; text-align: center; border-radius: var(--card-radius); margin-bottom: 20px; }
-        .layout-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
-        .card { background: var(--card); padding: 20px; border-radius: var(--card-radius); box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
-        .btn { padding: 8px 15px; border: none; border-radius: 5px; cursor: pointer; color: white; }
-        .btn-danger { background: #c0392b; }
-        .hidden { display: none; }
+        :root { --primary:#2c3e50; --accent:#e74c3c; --success:#27ae60; --bg:#f4f7f6; --card:#fff; --text:#333; --radius:10px; }
+        body { font-family:'Segoe UI',sans-serif; background:var(--bg); margin:0; color:var(--text); display:flex; justify-content:center; align-items:center; min-height:100vh; }
+        .box { background:var(--card); padding:2rem; border-radius:var(--radius); box-shadow:0 10px 25px rgba(0,0,0,.1); width:100%; max-width:440px; }
+        h2 { color:var(--primary); margin-top:0; text-align:center; }
+        .grp { margin-bottom:15px; position:relative; }
+        label { display:block; margin-bottom:6px; font-weight:600; font-size:.9rem; }
+        input { width:100%; padding:12px; border:2px solid #ddd; border-radius:8px; box-sizing:border-box; font-size:1rem; }
+        input:focus { outline:none; border-color:var(--primary); }
+        .cam { position:absolute; right:8px; top:38px; background:var(--primary); color:#fff; border:none; width:36px; height:36px; border-radius:50%; cursor:pointer; font-size:1.1rem; }
+        .submit { width:100%; padding:14px; background:var(--primary); color:#fff; border:none; border-radius:8px; font-size:1rem; font-weight:bold; cursor:pointer; }
+        .submit:disabled { background:#bdc3c7; cursor:not-allowed; }
+        .diag { font-size:.8rem; background:#f8f9fa; border-radius:6px; padding:12px; margin-top:15px; line-height:1.6; }
+        .diag b { color:var(--primary); }
+        .ok { color:var(--success); } .ko { color:var(--accent); } .wa { color:#e67e22; }
+        .test-btn { width:100%; margin-top:10px; padding:10px; background:#3498db; color:#fff; border:none; border-radius:6px; cursor:pointer; font-size:.9rem; }
+        #cam-modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,.9); z-index:2000; flex-direction:column; justify-content:center; align-items:center; padding:20px; }
+        #reader { width:100%; max-width:480px; background:#fff; border-radius:10px; }
+        .close { margin-top:15px; background:var(--accent); color:#fff; border:none; padding:10px 25px; border-radius:30px; cursor:pointer; font-weight:bold; }
+        #app { display:none; max-width:900px; margin:20px auto; padding:20px; width:100%; }
+        .hdr { background:var(--primary); color:#fff; padding:20px; border-radius:var(--radius); text-align:center; margin-bottom:20px; }
+        .card { background:var(--card); padding:18px; border-radius:var(--radius); box-shadow:0 2px 6px rgba(0,0,0,.05); margin-bottom:15px; }
+        .btn { padding:8px 16px; border:none; border-radius:6px; cursor:pointer; color:#fff; }
+        .b-red { background:var(--accent); } .b-grn { background:var(--success); } .b-gry { background:#eee; color:#333; }
+        .tabs { display:flex; gap:8px; margin-bottom:15px; flex-wrap:wrap; }
+        .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:15px; }
+        .hidden { display:none!important; }
+        .post-img { width:100%; border-radius:6px; }
+        .quote { font-style:italic; border-left:4px solid var(--accent); padding:12px; background:#f9f9f9; border-radius:0 6px 6px 0; }
     </style>
 </head>
 <body>
 
-    <!-- LOGIN -->
-    <div id="login-screen">
-        <div class="login-box">
-            <h2 id="site-title">Connexion</h2>
-            
-            <div id="msg-error" class="msg-box error"></div>
-            <div id="msg-warning" class="msg-box warning"></div>
-            <div id="msg-info" class="msg-box info" style="display:block;">
-                Initialisation du système...
-            </div>
+<div class="box" id="login-screen">
+    <h2>Connexion</h2>
+    <div class="grp">
+        <label>Identifiant</label>
+        <input type="text" id="scan-input" placeholder="Tapez votre ID" autocomplete="off">
+        <button type="button" class="cam" onclick="startCamera()">📷</button>
+    </div>
+    <div class="grp">
+        <label>Mot de passe</label>
+        <input type="password" id="pass-input" placeholder="Votre mot de passe">
+    </div>
+    <button class="submit" id="btn-submit" onclick="doLogin()">Se connecter</button>
 
-            <form id="login-form">
-                <div class="input-group">
-                    <label for="scan-input">Identifiant</label>
-                    <!-- RETIRÉ: readonly pour permettre la saisie manuelle forcée -->
-                    <input type="text" id="scan-input" placeholder="Tapez votre ID ou scannez" autocomplete="off">
-                    <button type="button" id="btn-scan" class="scan-btn" onclick="startCamera()" title="Scanner">📷</button>
-                </div>
+    <button class="test-btn" onclick="runDiagnostic()">🔧 Tester la connexion</button>
 
-                <div class="input-group">
-                    <label for="pass-input">Mot de passe</label>
-                    <input type="password" id="pass-input" placeholder="Votre mot de passe">
-                </div>
+    <div class="diag" id="diag">
+        <b>État du système :</b><br>
+        <span id="d-lib">• Librairies : en attente...</span><br>
+        <span id="d-https">• HTTPS : en attente...</span><br>
+        <span id="d-db">• Base de données : en attente...</span><br>
+        <span id="d-admin">• Compte admin : en attente...</span>
+    </div>
+    <div style="font-size:.75rem;color:#999;margin-top:10px;text-align:center;">
+        Admin : <code>admin</code>/<code>admin123</code> — User : <code>123456</code>/<code>admin</code>
+    </div>
+</div>
 
-                <button type="submit" id="btn-submit" class="btn-submit">Se connecter</button>
-            </form>
+<div id="cam-modal">
+    <div id="reader"></div>
+    <div id="cam-status" style="color:#fff;margin:10px 0;">Initialisation...</div>
+    <button class="close" onclick="stopCamera()">Fermer</button>
+</div>
 
-            <div style="margin-top:20px; font-size:0.8rem; color:#7f8c8d; text-align:left; background:#f8f9fa; padding:10px; border-radius:5px;">
-                <strong>Tests :</strong><br>
-                Admin: <code>admin</code> / <code>admin123</code><br>
-                User: <code>123456</code> / <code>admin</code>
-            </div>
+<div id="app"></div>
+
+<script>
+const SUPABASE_URL = 'https://vblkojfwnemmkadqkpzl.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZibGtvamZ3bmVtbWthZHFrcHpsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA5MjkyNDIsImV4cCI6MjEwNjUwNTI0Mn0.VPAKcJhwjbG3QBj7ZHBtR45TV3eAfl4nsa3wXnoBYto';
+
+let supabase = null;
+let currentUser = null;
+
+// Vérification immédiate des librairies
+function setDiag(id, txt, cls) {
+    const el = document.getElementById(id);
+    el.innerHTML = txt;
+    el.className = cls;
+}
+
+function checkLibs() {
+    const hasSupabase = (typeof window.supabase !== 'undefined');
+    const hasScanner = (typeof Html5Qrcode !== 'undefined');
+    if (hasSupabase && hasScanner) {
+        setDiag('d-lib', '• Librairies : <span class="ok">OK</span>', '');
+        return true;
+    } else {
+        setDiag('d-lib', '• Librairies : <span class="ko">ÉCHEC — Scripts bloqués (bloqueur de pub ?)</span>', 'ko');
+        return false;
+    }
+}
+
+function checkHttps() {
+    const secure = (window.location.protocol === 'https:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+    if (secure) { setDiag('d-https', '• HTTPS : <span class="ok">OK</span>', ''); return true; }
+    setDiag('d-https', '• HTTPS : <span class="wa">NON — Caméra bloquée</span>', 'wa');
+    return false;
+}
+
+async function runDiagnostic() {
+    setDiag('d-db', '• Base de données : test en cours...', '');
+    if (!checkLibs()) { setDiag('d-db', '• Base de données : <span class="ko">Impossible (librairies absentes)</span>', 'ko'); return; }
+    try {
+        supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        const { data, error } = await supabase.from('users').select('id').limit(1);
+        if (error) throw error;
+        setDiag('d-db', '• Base de données : <span class="ok">Connectée</span>', '');
+        // Test admin
+        const { data: admin } = await supabase.from('users').select('*').eq('id','admin').single();
+        if (admin) setDiag('d-admin', '• Compte admin : <span class="ok">Existe</span>', '');
+        else setDiag('d-admin', '• Compte admin : <span class="ko">ABSENT — Créez-le en SQL</span>', 'ko');
+    } catch (err) {
+        setDiag('d-db', '• Base de données : <span class="ko">ERREUR : ' + err.message + '</span>', 'ko');
+        setDiag('d-admin', '• Compte admin : en attente', '');
+    }
+}
+
+// Lancer les checks au chargement
+window.addEventListener('load', () => {
+    checkLibs();
+    checkHttps();
+    runDiagnostic();
+    document.getElementById('scan-input').focus();
+});
+
+// === LOGIN ===
+async function doLogin() {
+    const id = document.getElementById('scan-input').value.trim();
+    const pass = document.getElementById('pass-input').value.trim();
+    const btn = document.getElementById('btn-submit');
+    if (!id || !pass) { alert('Remplissez les deux champs.'); return; }
+    if (!supabase) { alert('Base de données non connectée. Cliquez sur "Tester la connexion".'); return; }
+
+    btn.disabled = true; btn.textContent = 'Connexion...';
+    try {
+        const { data, error } = await supabase.from('users').select('*').eq('id', id).single();
+        if (error || !data) throw new Error('Identifiant inconnu');
+        if (data.password !== pass) throw new Error('Mot de passe incorrect');
+        currentUser = data;
+        document.getElementById('login-screen').style.display = 'none';
+        document.getElementById('app').style.display = 'block';
+        if (data.role === 'admin') renderAdmin(); else renderUser();
+    } catch (err) {
+        alert('❌ ' + err.message);
+        btn.disabled = false; btn.textContent = 'Se connecter';
+    }
+}
+function logout() { location.reload(); }
+
+// === CAMÉRA ===
+let scanner = null;
+function startCamera() {
+    if (typeof Html5Qrcode === 'undefined') { alert('Librairie de scan non chargée.'); return; }
+    document.getElementById('cam-modal').style.display = 'flex';
+    scanner = new Html5Qrcode('reader');
+    scanner.start({ facingMode:'environment' }, { fps:10, qrbox:250 }, (t) => {
+        stopCamera();
+        document.getElementById('scan-input').value = t.replace(/[^a-zA-Z0-9]/g,'');
+    }).catch(e => { document.getElementById('cam-status').textContent = 'Erreur: ' + e; });
+}
+function stopCamera() {
+    if (scanner) { scanner.stop().catch(()=>{}); scanner = null; }
+    document.getElementById('cam-modal').style.display = 'none';
+}
+
+// === ADMIN ===
+function renderAdmin() {
+    document.getElementById('app').innerHTML = `
+        <div class="hdr"><h1 style="margin:0">🛠️ Administration</h1></div>
+        <button class="btn b-red" onclick="logout()">Déconnexion</button>
+        <div class="tabs" style="margin-top:15px">
+            <button class="btn b-gry" onclick="tab('u')">Utilisateurs</button>
+            <button class="btn b-gry" onclick="tab('p')">Posts</button>
+            <button class="btn b-gry" onclick="tab('d')">Design</button>
         </div>
-    </div>
+        <div id="t-u"><div class="card"><h3>Ajouter</h3>
+            <input id="nu-id" placeholder="ID"><input id="nu-name" placeholder="Nom"><input id="nu-pass" placeholder="Mdp">
+            <button class="btn b-grn" onclick="addUser()">Ajouter</button></div>
+            <div id="u-list"></div></div>
+        <div id="t-p" class="hidden"><div id="p-list"></div></div>
+        <div id="t-d" class="hidden"><div class="card"><h3>Design</h3>
+            <label>Primaire</label><input type="color" id="c-p" value="#2c3e50">
+            <label>Layout</label><select id="c-l"><option value="grid">Grille</option><option value="list">Liste</option></select>
+            <button class="btn b-grn" onclick="saveCfg()">Sauvegarder</button></div></div>`;
+    loadAdminData();
+}
+function tab(id) { ['u','p','d'].forEach(t => document.getElementById('t-'+t).classList.toggle('hidden', t!==id)); }
 
-    <!-- MODAL CAMÉRA -->
-    <div id="camera-modal">
-        <div id="reader"></div>
-        <div id="cam-status" style="color:white; margin:10px 0;">Initialisation...</div>
-        <button class="close-cam" onclick="stopCamera()">Fermer</button>
-    </div>
+async function loadAdminData() {
+    const { data: users } = await supabase.from('users').select('*');
+    document.getElementById('u-list').innerHTML = (users||[]).map(u =>
+        `<div class="card" style="display:flex;justify-content:space-between"><span>${u.name} (${u.id})</span>${u.id!=='admin'?`<button class="btn b-red" onclick="delUser('${u.id}')">X</button>`:''}</div>`).join('');
+    const { data: posts } = await supabase.from('posts').select('*').order('created_at',{ascending:false});
+    document.getElementById('p-list').innerHTML = (posts||[]).map(p =>
+        `<div class="card" style="display:flex;justify-content:space-between"><span>${p.author_name} - ${p.type}</span><button class="btn b-red" onclick="delPost(${p.id})">X</button></div>`).join('') || '<p>Aucun post.</p>';
+}
+async function addUser() {
+    const id=nu_id.value, name=nu_name.value, pass=nu_pass.value;
+    if(!id||!name||!pass) return alert('Champs requis');
+    const { error } = await supabase.from('users').insert([{id,name,password:pass,role:'user'}]);
+    if(error) alert('Erreur: '+error.message); else { alert('Ajouté !'); loadAdminData(); }
+}
+async function delUser(id) { if(confirm('Supprimer ?')){ await supabase.from('users').delete().eq('id',id); loadAdminData(); } }
+async function delPost(id) { if(confirm('Supprimer ?')){ await supabase.from('posts').delete().eq('id',id); loadAdminData(); } }
+async function saveCfg() {
+    await supabase.from('config').upsert({key:'primary_color',value:c_p.value});
+    await supabase.from('config').upsert({key:'layout_mode',value:c_l.value});
+    alert('Sauvegardé !');
+}
 
-    <!-- CONTENEURS APP (Simplifiés pour l'exemple, le code complet est dans le JS) -->
-    <div id="app-container"></div>
-
-    <script>
-        // === CONFIG ===
-        const SUPABASE_URL = 'https://vblkojfwnemmkadqkpzl.supabase.co';
-        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZibGtvamZ3bmVtbWthZHFrcHpsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA5MjkyNDIsImV4cCI6MjEwNjUwNTI0Mn0.VPAKcJhwjbG3QBj7ZHBtR45TV3eAfl4nsa3wXnoBYto';
-        
-        let supabase;
-        const msgError = document.getElementById('msg-error');
-        const msgWarning = document.getElementById('msg-warning');
-        const msgInfo = document.getElementById('msg-info');
-        const btnScan = document.getElementById('btn-scan');
-        const btnSubmit = document.getElementById('btn-submit');
-        const scanInput = document.getElementById('scan-input');
-        const passInput = document.getElementById('pass-input');
-
-        // === DIAGNOSTIC AU DÉMARRAGE ===
-        window.addEventListener('load', async () => {
-            // 1. Vérifier Librairie
-            if (typeof Html5Qrcode === 'undefined') {
-                showWarning("⚠️ La librairie de scan ne charge pas. Vérifiez votre connexion internet.");
-                btnScan.disabled = true;
-                btnScan.title = "Librairie indisponible";
-            } else {
-                msgInfo.innerHTML = "✅ Librairie de scan chargée.<br>🔍 Vérification de la base de données...";
-            }
-
-            // 2. Vérifier HTTPS
-            if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-                showWarning("⚠️ Attention : Vous n'êtes pas en HTTPS. La caméra sera BLOQUÉE par le navigateur. Utilisez GitHub Pages ou localhost.");
-            }
-
-            // 3. Connexion Supabase
-            try {
-                supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-                const { data, error } = await supabase.from('config').select('key').limit(1);
-                if (error) throw error;
-                msgInfo.innerHTML = "✅ Système prêt. Vous pouvez vous connecter.";
-                msgInfo.style.background = "#d5f5e3";
-                msgInfo.style.color = "#196f3d";
-            } catch (err) {
-                showError("❌ Erreur Base de Données : " + err.message + ". Vérifiez que les tables SQL ont été créées.");
-            }
-
-            scanInput.focus();
-        });
-
-        function showError(msg) { msgError.textContent = msg; msgError.style.display = 'block'; }
-        function showWarning(msg) { msgWarning.textContent = msg; msgWarning.style.display = 'block'; }
-
-        // === FORMULAIRE ===
-        function checkForm() {
-            if (scanInput.value.trim().length > 0 && passInput.value.trim().length > 0) {
-                btnSubmit.classList.add('active');
-            } else {
-                btnSubmit.classList.remove('active');
-            }
-        }
-        scanInput.addEventListener('input', checkForm);
-        passInput.addEventListener('input', checkForm);
-
-        document.getElementById('login-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            if (!btnSubmit.classList.contains('active')) return;
-
-            const id = scanInput.value.trim();
-            const pass = passInput.value.trim();
-            msgError.style.display = 'none';
-            btnSubmit.innerHTML = "Connexion...";
-            btnSubmit.disabled = true;
-
-            try {
-                const { data, error } = await supabase.from('users').select('*').eq('id', id).single();
-                if (error || !data) throw new Error("Identifiant inconnu dans la base de données.");
-                if (data.password !== pass) throw new Error("Mot de passe incorrect.");
-
-                // Succès
-                currentUser = data;
-                document.getElementById('login-screen').style.display = 'none';
-                if (data.role === 'admin') loadAdmin(); else loadUserApp();
-            } catch (err) {
-                showError(err.message);
-                btnSubmit.innerHTML = "Se connecter";
-                btnSubmit.disabled = false;
-                btnSubmit.classList.add('active');
-                passInput.value = '';
-                passInput.focus();
-            }
-        });
-
-        // === CAMÉRA ROBUSTE ===
-        let scanner = null;
-        function startCamera() {
-            const modal = document.getElementById('camera-modal');
-            const status = document.getElementById('cam-status');
-            modal.style.display = 'flex';
-            status.textContent = "Demande d'accès à la caméra...";
-
-            // Vérif finale
-            if (typeof Html5Qrcode === 'undefined') {
-                status.textContent = "Erreur: Librairie non chargée.";
-                return;
-            }
-
-            scanner = new Html5Qrcode("reader");
-            const config = { fps: 10, qrbox: { width: 250, height: 250 } };
-
-            scanner.start({ facingMode: "environment" }, config, (text) => {
-                stopCamera();
-                scanInput.value = text.replace(/[^a-zA-Z0-9]/g, '');
-                passInput.focus();
-                checkForm();
-                status.textContent = "Code détecté !";
-            }).catch(err => {
-                console.error(err);
-                let msg = "Erreur: " + err;
-                if (err.includes("Permission")) msg = "Accès caméra refusé. Vérifiez les permissions du navigateur.";
-                if (err.includes("https")) msg = "La caméra exige un site en HTTPS (sauf localhost).";
-                status.textContent = msg;
-                status.style.color = "#ffadad";
-            });
-        }
-
-        function stopCamera() {
-            if (scanner) {
-                scanner.stop().then(() => {
-                    document.getElementById('camera-modal').style.display = 'none';
-                }).catch(err => console.error(err));
-                scanner = null;
-            } else {
-                document.getElementById('camera-modal').style.display = 'none';
-            }
-        }
-
-        function logout() { location.reload(); }
-
-        // === CHARGEMENT DES INTERFACES (Code complet inclus) ===
-        
-        function loadAdmin() {
-            document.body.innerHTML = `
-            <div id="admin-panel" style="display:block;">
-                <div style="display:flex; justify-content:space-between; margin-bottom:20px;">
-                    <h1>🛠️ Administration</h1>
-                    <button onclick="logout()" class="btn btn-danger">Déconnexion</button>
-                </div>
-                <div style="display:flex; gap:10px; margin-bottom:20px;">
-                    <button class="btn" style="background:#eee; color:#333;" onclick="showTab('users')">Utilisateurs</button>
-                    <button class="btn" style="background:#eee; color:#333;" onclick="showTab('posts')">Posts</button>
-                    <button class="btn" style="background:#eee; color:#333;" onclick="showTab('design')">Design</button>
-                </div>
-                
-                <div id="tab-users" class="tab-content">
-                    <div class="card">
-                        <h3>Ajouter un utilisateur</h3>
-                        <input type="text" id="new-id" placeholder="ID">
-                        <input type="text" id="new-name" placeholder="Nom">
-                        <input type="text" id="new-pass" placeholder="Mdp">
-                        <button onclick="addUser()" class="btn" style="background:var(--success); color:white;">Ajouter</button>
-                    </div>
-                    <div id="user-list" style="margin-top:20px;"></div>
-                </div>
-                
-                <div id="tab-posts" class="tab-content hidden">
-                    <h3>Publications</h3>
-                    <div id="post-list"></div>
-                </div>
-
-                <div id="tab-design" class="tab-content hidden">
-                    <h3>Design</h3>
-                    <label>Couleur Primaire</label>
-                    <input type="color" id="cfg-primary" value="#2c3e50">
-                    <label>Layout</label>
-                    <select id="cfg-layout"><option value="grid">Grille</option><option value="list">Liste</option></select>
-                    <button onclick="saveConfig()" class="btn" style="background:var(--success); color:white; width:100%;">Sauvegarder</button>
-                </div>
-            </div>`;
-            loadAdminData();
-        }
-
-        function showTab(id) {
-            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
-            document.getElementById('tab-'+id).classList.remove('hidden');
-        }
-
-        async function loadAdminData() {
-            const { data: users } = await supabase.from('users').select('*');
-            const list = document.getElementById('user-list');
-            list.innerHTML = '';
-            users.forEach(u => {
-                list.innerHTML += `<div class="card" style="margin-bottom:10px; display:flex; justify-content:space-between;"><span>${u.name} (${u.id})</span> ${u.id!=='admin' ? `<button onclick="delUser('${u.id}')" class="btn btn-danger">X</button>`:''}</div>`;
-            });
-            
-            const { data: posts } = await supabase.from('posts').select('*').order('created_at', {ascending:false});
-            const pList = document.getElementById('post-list');
-            pList.innerHTML = '';
-            if(posts) posts.forEach(p => {
-                pList.innerHTML += `<div class="card" style="margin-bottom:10px; display:flex; justify-content:space-between;"><span>${p.author_name} - ${p.type}</span> <button onclick="delPost(${p.id})" class="btn btn-danger">X</button></div>`;
-            });
-        }
-
-        async function addUser() {
-            const id = document.getElementById('new-id').value;
-            const name = document.getElementById('new-name').value;
-            const pass = document.getElementById('new-pass').value;
-            if(!id || !name || !pass) return alert("Remplissez tout");
-            await supabase.from('users').insert([{id, name, password:pass}]);
-            loadAdminData();
-        }
-        async function delUser(id) { if(confirm('Supprimer ?')) { await supabase.from('users').delete().eq('id', id); loadAdminData(); } }
-        async function delPost(id) { if(confirm('Supprimer ?')) { await supabase.from('posts').delete().eq('id', id); loadAdminData(); } }
-        
-        async function saveConfig() {
-            const p = document.getElementById('cfg-primary').value;
-            const l = document.getElementById('cfg-layout').value;
-            await Promise.all([
-                supabase.from('config').upsert({key:'primary_color', value:p}),
-                supabase.from('config').upsert({key:'layout_mode', value:l})
-            ]);
-            alert("Sauvegardé !");
-        }
-
-        function loadUserApp() {
-            document.body.innerHTML = `
-            <div id="user-app" style="display:block;">
-                <div class="dynamic-header">
-                    <h1>Bienvenue</h1>
-                    <button onclick="logout()" class="btn btn-danger">Déconnexion</button>
-                </div>
-                <button class="btn" style="background:#eee; color:#333; margin-bottom:20px;" onclick="document.getElementById('pub-zone').classList.toggle('hidden')">+ Publier</button>
-                
-                <div id="pub-zone" class="card hidden" style="margin-bottom:20px;">
-                    <input type="file" id="p-file">
-                    <textarea id="p-text" placeholder="Texte..." style="width:100%; margin-top:10px;"></textarea>
-                    <button onclick="submitPost()" class="btn" style="background:var(--primary); color:white; margin-top:10px; width:100%;">Publier</button>
-                </div>
-                
-                <div id="feed" class="layout-grid"></div>
-            </div>`;
-            renderFeed();
-        }
-
-        async function submitPost() {
-            const file = document.getElementById('p-file').files[0];
-            const text = document.getElementById('p-text').value;
-            if(!file && !text) return alert("Rien à publier");
-            
-            let content = text;
-            if(file) {
-                const fn = 'post_'+Date.now();
-                await supabase.storage.from('uploads').upload(fn, file);
-                const { data } = supabase.storage.from('uploads').getPublicUrl(fn);
-                content = data.publicUrl;
-            }
-            
-            await supabase.from('posts').insert([{
-                author_id: currentUser.id, author_name: currentUser.name,
-                type: file ? 'photo' : 'quote', content: content
-            }]);
-            alert("Publié !");
-            renderFeed();
-        }
-
-        async function renderFeed() {
-            const { data } = await supabase.from('posts').select('*').order('created_at', {ascending:false});
-            const f = document.getElementById('feed');
-            f.innerHTML = '';
-            if(data) data.forEach(p => {
-                let html = p.type==='photo' ? `<img src="${p.content}" style="width:100%; border-radius:5px;">` : `<p style="font-style:italic;">"${p.content}"</p>`;
-                f.innerHTML += `<div class="card"><strong>${p.author_name}</strong><br>${html}</div>`;
-            });
-        }
-    </script>
+// === USER ===
+function renderUser() {
+    document.getElementById('app').innerHTML = `
+        <div class="hdr"><h1 style="margin:0">Bonjour ${currentUser.name}</h1></div>
+        <button class="btn b-red" onclick="logout()">Déconnexion</button>
+        <button class="btn b-gry" style="margin-left:8px" onclick="document.getElementById('pz').classList.toggle('hidden')">+ Publier</button>
+        <div id="pz" class="card hidden" style="margin-top:15px">
+            <select id="pt" onchange="document.getElementById('pf').style.display=this.value==='photo'?'block':'none';document.getElementById('pq').style.display=this.value==='quote'?'block':'none'">
+                <option value="photo">Photo</option><option value="quote">Citation</option></select>
+            <div id="pf"><input type="file" id="p-file"></div>
+            <div id="pq" class="hidden"><textarea id="p-text" style="width:100%" placeholder="Citation..."></textarea><input id="p-cited" placeholder="ID cité (optionnel)"></div>
+            <button class="btn b-grn" style="margin-top:10px;width:100%" onclick="submitPost()">Publier</button></div>
+        <div id="feed" class="grid" style="margin-top:15px"></div>`;
+    renderFeed();
+}
+async function submitPost() {
+    const type = pt.value; let content='', citedName=null, citedId=null;
+    if(type==='photo') {
+        const f = document.getElementById('p-file').files[0];
+        if(!f) return alert('Image requise');
+        const fn='post_'+Date.now();
+        const {error}=await supabase.storage.from('uploads').upload(fn,f);
+        if(error) return alert('Upload: '+error.message);
+        content = supabase.storage.from('uploads').getPublicUrl(fn).data.publicUrl;
+    } else {
+        content = document.getElementById('p-text').value;
+        const c = document.getElementById('p-cited').value.trim();
+        if(!content) return alert('Texte requis');
+        if(c){ const {data}=await supabase.from('users').select('name').eq('id',c).single(); if(!data) return alert('ID cité inexistant'); citedId=c; citedName=data.name; }
+    }
+    const { error } = await supabase.from('posts').insert([{author_id:currentUser.id,author_name:currentUser.name,type,content,cited_id:citedId,cited_name:citedName}]);
+    if(error) alert('Erreur: '+error.message); else { alert('Publié !'); document.getElementById('pz').classList.add('hidden'); renderFeed(); }
+}
+async function renderFeed() {
+    const { data } = await supabase.from('posts').select('*').order('created_at',{ascending:false});
+    document.getElementById('feed').innerHTML = (data||[]).map(p => {
+        const body = p.type==='photo' ? `<img src="${p.content}" class="post-img">` : `<div class="quote">"${p.content}"</div>${p.cited_name?`<div style="text-align:right;color:var(--primary)">- Cité: ${p.cited_name}</div>`:''}`;
+        return `<div class="card"><div style="display:flex;justify-content:space-between"><strong>${p.author_name}</strong><small>${new Date(p.created_at).toLocaleDateString()}</small></div>${body}</div>`;
+    }).join('') || '<p>Aucune publication.</p>';
+}
+</script>
 </body>
 </html>
