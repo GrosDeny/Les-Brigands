@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Communauté Pro - Sans CDN</title>
+    <title>Communauté Pro</title>
     <style>
         :root { --primary:#2c3e50; --accent:#e74c3c; --success:#27ae60; --bg:#f4f7f6; --card:#fff; --text:#333; --radius:10px; }
         body { font-family:'Segoe UI',sans-serif; background:var(--bg); margin:0; color:var(--text); display:flex; justify-content:center; align-items:center; min-height:100vh; }
@@ -32,6 +32,7 @@
 </head>
 <body>
 
+<!-- ====== ÉCRAN DE CONNEXION ====== -->
 <div class="box" id="login-screen">
     <div class="alive" id="alive-msg">✅ Code JavaScript actif (mode sans CDN)</div>
     <h2>Connexion</h2>
@@ -55,15 +56,19 @@
     </div>
 </div>
 
+<!-- ====== CONTENEUR APPLICATION ====== -->
 <div id="app"></div>
 
 <script>
+// ============================================================
+//  CONFIGURATION SUPABASE (API REST, aucune librairie requise)
+// ============================================================
 const SUPABASE_URL = 'https://vblkojfwnemmkadqkpzl.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZibGtvamZ3bmVtbWthZHFrcHpsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA5MjkyNDIsImV4cCI6MjEwNjUwNTI0Mn0.VPAKcJhwjbG3QBj7ZHBtR45TV3eAfl4nsa3wXnoBYto';
 
 let currentUser = null;
 
-// === COUCHE API REST (aucune librairie requise) ===
+// Couche d'accès à la base via l'API REST (PostgREST)
 async function db(table, params = '', options = {}) {
     const url = `${SUPABASE_URL}/rest/v1/${table}${params}`;
     const res = await fetch(url, {
@@ -85,6 +90,9 @@ async function db(table, params = '', options = {}) {
     return text ? JSON.parse(text) : null;
 }
 
+// ============================================================
+//  DIAGNOSTIC
+// ============================================================
 function setDiag(id, txt, cls) {
     const el = document.getElementById(id);
     if (el) { el.innerHTML = txt; el.className = cls || ''; }
@@ -93,7 +101,7 @@ function setDiag(id, txt, cls) {
 async function runDiagnostic() {
     setDiag('d-db', '• Base de données : test en cours...', '');
     try {
-        const data = await db('users', '?select=id&limit=1');
+        await db('users', '?select=id&limit=1');
         setDiag('d-db', '• Base de données : <span class="ok">Connectée ✔</span>', '');
         const admin = await db('users', '?id=eq.admin&select=*');
         if (admin && admin.length) setDiag('d-admin', '• Compte admin : <span class="ok">Existe ✔</span>', '');
@@ -109,7 +117,9 @@ async function runDiagnostic() {
 runDiagnostic();
 document.getElementById('scan-input').focus();
 
-// === LOGIN ===
+// ============================================================
+//  CONNEXION
+// ============================================================
 async function doLogin() {
     const id = document.getElementById('scan-input').value.trim();
     const pass = document.getElementById('pass-input').value.trim();
@@ -131,7 +141,9 @@ async function doLogin() {
 }
 function logout() { location.reload(); }
 
-// === ADMIN ===
+// ============================================================
+//  ESPACE ADMIN
+// ============================================================
 function renderAdmin() {
     document.getElementById('app').innerHTML = `
         <div class="hdr"><h1 style="margin:0">🛠️ Administration</h1></div>
@@ -178,23 +190,39 @@ async function saveCfg() {
     alert('Sauvegardé !');
 }
 
-// === USER ===
+// ============================================================
+//  ESPACE UTILISATEUR
+// ============================================================
 function renderUser() {
     document.getElementById('app').innerHTML = `
         <div class="hdr"><h1 style="margin:0">Bonjour ${currentUser.name}</h1></div>
         <button class="btn b-red" onclick="logout()">Déconnexion</button>
         <button class="btn b-gry" style="margin-left:8px" onclick="document.getElementById('pz').classList.toggle('hidden')">+ Publier</button>
         <div id="pz" class="card hidden" style="margin-top:15px">
-            <select id="pt" onchange="document.getElementById('pf').style.display=this.value==='photo'?'block':'none';document.getElementById('pq').style.display=this.value==='quote'?'block':'none'">
-                <option value="photo">Photo</option><option value="quote">Citation</option></select>
+            <select id="pt" onchange="togglePubFields()">
+                <option value="photo">Photo</option>
+                <option value="quote">Citation</option>
+            </select>
             <div id="pf"><input type="file" id="p-file"></div>
-            <div id="pq" class="hidden"><textarea id="p-text" style="width:100%" placeholder="Citation..."></textarea><input id="p-cited" placeholder="ID cité (optionnel)"></div>
+            <div id="pq" class="hidden">
+                <textarea id="p-text" style="width:100%" placeholder="Citation..."></textarea>
+                <input id="p-cited" placeholder="ID cité (optionnel)" style="margin-top:8px">
+            </div>
             <button class="btn b-grn" style="margin-top:10px;width:100%" onclick="submitPost()">Publier</button></div>
         <div id="feed" class="grid" style="margin-top:15px"></div>`;
     renderFeed();
 }
+
+// CORRECTIF : bascule par classe (et non style.display) pour respecter le CSS .hidden
+function togglePubFields() {
+    const isPhoto = document.getElementById('pt').value === 'photo';
+    document.getElementById('pf').classList.toggle('hidden', !isPhoto);
+    document.getElementById('pq').classList.toggle('hidden', isPhoto);
+}
+
 async function submitPost() {
-    const type = document.getElementById('pt').value; let content='', citedName=null, citedId=null;
+    const type = document.getElementById('pt').value;
+    let content='', citedName=null, citedId=null;
     if(type==='photo') {
         const f = document.getElementById('p-file').files[0];
         if(!f) return alert('Image requise');
@@ -204,14 +232,21 @@ async function submitPost() {
         content = document.getElementById('p-text').value;
         const c = document.getElementById('p-cited').value.trim();
         if(!content) return alert('Texte requis');
-        if(c){ const u = await db('users', `?id=eq.${c}&select=name`); if(!u||!u.length) return alert('ID cité inexistant'); citedId=c; citedName=u[0].name; }
+        if(c){
+            const u = await db('users', `?id=eq.${c}&select=name`);
+            if(!u||!u.length) return alert('ID cité inexistant');
+            citedId=c; citedName=u[0].name;
+        }
     }
     try {
         await db('posts', '', {method:'POST', body:{author_id:currentUser.id,author_name:currentUser.name,type,content,cited_id:citedId,cited_name:citedName}, prefer:'return=minimal'});
-        alert('Publié !'); document.getElementById('pz').classList.add('hidden'); renderFeed();
+        alert('Publié !');
+        document.getElementById('pz').classList.add('hidden');
+        renderFeed();
     } catch(e) { alert('Erreur: '+e.message); }
 }
-// Upload via API Storage REST (multipart)
+
+// Upload image via l'API Storage REST (multipart)
 async function uploadFile(file) {
     const fn = 'post_' + Date.now() + '_' + file.name.replace(/[^a-zA-Z0-9.]/g,'_');
     const fd = new FormData(); fd.append('file', file);
@@ -221,10 +256,13 @@ async function uploadFile(file) {
     if(!res.ok) { alert('Upload erreur: '+(await res.text())); return null; }
     return `${SUPABASE_URL}/storage/v1/object/public/uploads/${fn}`;
 }
+
 async function renderFeed() {
     const data = await db('posts', '?select=*&order=created_at.desc');
     document.getElementById('feed').innerHTML = (data||[]).map(p => {
-        const body = p.type==='photo' ? `<img src="${p.content}" class="post-img">` : `<div class="quote">"${p.content}"</div>${p.cited_name?`<div style="text-align:right;color:var(--primary)">- Cité: ${p.cited_name}</div>`:''}`;
+        const body = p.type==='photo'
+            ? `<img src="${p.content}" class="post-img">`
+            : `<div class="quote">"${p.content}"</div>${p.cited_name?`<div style="text-align:right;color:var(--primary)">- Cité: ${p.cited_name}</div>`:''}`;
         return `<div class="card"><div style="display:flex;justify-content:space-between"><strong>${p.author_name}</strong><small>${new Date(p.created_at).toLocaleDateString()}</small></div>${body}</div>`;
     }).join('') || '<p>Aucune publication.</p>';
 }
