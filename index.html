@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Communauté Pro</title>
+    <!-- ZXing : détection code-barres universelle (Code 128, QR, EAN...) -->
+    <script src="https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js"></script>
     <style>
         :root { --primary:#2c3e50; --accent:#e74c3c; --success:#27ae60; --bg:#f4f7f6; --card:#fff; --text:#333; --radius:10px; }
         body { font-family:'Segoe UI',sans-serif; background:var(--bg); margin:0; color:var(--text); display:flex; justify-content:center; align-items:center; min-height:100vh; }
@@ -122,55 +124,47 @@ async function runDiagnostic() {
 runDiagnostic();
 
 // ============================================================
-//  SCAN CAMÉRA NATIF (BarcodeDetector, sans librairie)
+//  SCAN CAMÉRA (ZXing, fonctionne partout : PC + mobile)
 // ============================================================
 let camStream = null;
-let camLoop = null;
-let detector = null;
-
-function cameraSupported() { return ('BarcodeDetector' in window); }
+let zxingControls = null;
 
 async function openCamera() {
     document.getElementById('cam-modal').style.display = 'flex';
     const status = document.getElementById('cam-status');
     const video = document.getElementById('cam-video');
+    status.textContent = "Initialisation de la caméra...";
 
-    if (!cameraSupported()) {
-        status.innerHTML = "⚠️ Ce navigateur ne supporte pas le scan de code-barres.<br>Utilisez la saisie manuelle.";
+    if (typeof ZXing === 'undefined') {
+        status.innerHTML = "⚠️ Bibliothèque de scan non chargée (vérifiez la connexion internet).<br>Utilisez la saisie manuelle.";
         setTimeout(closeCamera, 2500);
         document.getElementById('scan-input').focus();
         return;
     }
 
     try {
-        status.textContent = "Demande d'accès à la caméra...";
-        camStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-        video.srcObject = camStream;
-        await video.play();
-        status.textContent = "🔍 Cadrez le code-barres...";
+        // Liste des caméras disponibles
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const videoInputs = devices.filter(d => d.kind === 'videoinput');
+        if (!videoInputs.length) throw new Error("Aucune caméra trouvée");
 
-        const formats = await BarcodeDetector.getSupportedFormats();
-        detector = new BarcodeDetector({ formats });
+        // Caméra arrière en priorité (téléphone)
+        const back = videoInputs.find(d => /back|rear|environment/i.test(d.label));
+        const deviceId = (back || videoInputs[0]).deviceId;
 
-        const tick = async () => {
-            if (!camStream) return;
-            try {
-                const codes = await detector.detect(video);
-                if (codes.length > 0) {
-                    const raw = codes[0].rawValue || '';
-                    const clean = raw.replace(/[^a-zA-Z0-9]/g, '');
-                    if (clean) {
-                        closeCamera();
-                        document.getElementById('scan-input').value = clean;
-                        // Connexion automatique : on attend juste le mot de passe
-                        document.getElementById('pass-input').focus();
-                        return;
-                    }
+        zxingControls = new ZXing.CameraVideoControls(video, deviceId);
+        zxingControls.decodeFromVideoDevice(deviceId, video, (result, err) => {
+            if (result) {
+                const clean = (result.getText() || '').replace(/[^a-zA-Z0-9]/g, '');
+                if (clean) {
+                    closeCamera();
+                    document.getElementById('scan-input').value = clean;
+                    document.getElementById('pass-input').focus();
                 }
-            } catch (e) { /* ignore frame errors */ }
-            camLoop = requestAnimationFrame(tick);
-        };
-        tick();
+            }
+            // on ignore les erreurs "NotFoundException" (pas encore de code dans le cadre)
+        });
+        status.textContent = "🔍 Cadrez le code-barres...";
     } catch (err) {
         status.innerHTML = "❌ Caméra indisponible : " + err.message + "<br>Utilisez la saisie manuelle.";
         setTimeout(closeCamera, 2500);
@@ -179,7 +173,7 @@ async function openCamera() {
 }
 
 function closeCamera() {
-    if (camLoop) { cancelAnimationFrame(camLoop); camLoop = null; }
+    if (zxingControls) { zxingControls.stop(); zxingControls = null; }
     if (camStream) { camStream.getTracks().forEach(t => t.stop()); camStream = null; }
     document.getElementById('cam-modal').style.display = 'none';
 }
@@ -303,7 +297,6 @@ async function submitPost() {
         content = document.getElementById('p-text').value.trim();
         const c = document.getElementById('p-cited').value.trim();
         if(!content) return alert('Le texte de la citation est requis.');
-        // CORRECTIF : ID cité désormais OBLIGATOIRE
         if(!c) return alert("L'ID de la personne citée est obligatoire.");
         const u = await db('users', `?id=eq.${encodeURIComponent(c)}&select=name`);
         if(!u||!u.length) return alert("L'ID cité n'existe pas. Vous ne pouvez citer qu'un membre inscrit.");
