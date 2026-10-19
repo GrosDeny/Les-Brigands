@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Communauté Pro</title>
-    <!-- ZXing : détection code-barres universelle (Code 128, QR, EAN...) -->
+    <!-- ZXing : détection code-barres multi-navigateurs (Code 128, QR, EAN...) -->
     <script src="https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js"></script>
     <style>
         :root { --primary:#2c3e50; --accent:#e74c3c; --success:#27ae60; --bg:#f4f7f6; --card:#fff; --text:#333; --radius:10px; }
@@ -124,7 +124,7 @@ async function runDiagnostic() {
 runDiagnostic();
 
 // ============================================================
-//  SCAN CAMÉRA (ZXing, fonctionne partout : PC + mobile)
+//  SCAN CAMÉRA (ZXing, multi-navigateur : PC + mobile)
 // ============================================================
 let camStream = null;
 let zxingControls = null;
@@ -133,14 +133,15 @@ async function openCamera() {
     document.getElementById('cam-modal').style.display = 'flex';
     const status = document.getElementById('cam-status');
     const video = document.getElementById('cam-video');
-    status.textContent = "Initialisation de la caméra...";
 
     if (typeof ZXing === 'undefined') {
-        status.innerHTML = "⚠️ Bibliothèque de scan non chargée (vérifiez la connexion internet).<br>Utilisez la saisie manuelle.";
+        status.innerHTML = "⚠️ Bibliothèque de scan non chargée (vérifiez votre connexion internet).<br>Utilisez la saisie manuelle.";
         setTimeout(closeCamera, 2500);
         document.getElementById('scan-input').focus();
         return;
     }
+
+    status.textContent = "Initialisation de la caméra...";
 
     try {
         // Liste des caméras disponibles
@@ -148,10 +149,11 @@ async function openCamera() {
         const videoInputs = devices.filter(d => d.kind === 'videoinput');
         if (!videoInputs.length) throw new Error("Aucune caméra trouvée");
 
-        // Caméra arrière en priorité (téléphone)
+        // Caméra arrière en priorité (téléphone), sinon la première
         const back = videoInputs.find(d => /back|rear|environment/i.test(d.label));
         const deviceId = (back || videoInputs[0]).deviceId;
 
+        // On limite la détection au Code 128 pour plus de rapidité et de fiabilité
         zxingControls = new ZXing.CameraVideoControls(video, deviceId);
         zxingControls.decodeFromVideoDevice(deviceId, video, (result, err) => {
             if (result) {
@@ -162,8 +164,9 @@ async function openCamera() {
                     document.getElementById('pass-input').focus();
                 }
             }
-            // on ignore les erreurs "NotFoundException" (pas encore de code dans le cadre)
-        });
+            // les erreurs "pas encore de code détecté" sont ignorées volontairement
+        }, { formats: [ZXing.BarcodeFormat.CODE_128] });
+
         status.textContent = "🔍 Cadrez le code-barres...";
     } catch (err) {
         status.innerHTML = "❌ Caméra indisponible : " + err.message + "<br>Utilisez la saisie manuelle.";
@@ -180,7 +183,6 @@ function closeCamera() {
 
 // Mode par défaut : ouvrir la caméra automatiquement au chargement
 window.addEventListener('load', () => {
-    // Petit délai pour que la page soit visible avant la demande caméra
     setTimeout(openCamera, 400);
 });
 
