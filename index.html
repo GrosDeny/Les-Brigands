@@ -124,10 +124,9 @@ async function runDiagnostic() {
 runDiagnostic();
 
 // ============================================================
-//  SCAN CAMÉRA (ZXing, multi-navigateur : PC + mobile)
+//  SCAN CAMÉRA (ZXing BrowserMultiFormatReader, PC + mobile)
 // ============================================================
-let camStream = null;
-let zxingControls = null;
+let zxingReader = null;
 
 async function openCamera() {
     document.getElementById('cam-modal').style.display = 'flex';
@@ -144,28 +143,29 @@ async function openCamera() {
     status.textContent = "Initialisation de la caméra...";
 
     try {
-        // Liste des caméras disponibles
-        const devices = await navigator.mediaDevices.enumerateDevices();
-        const videoInputs = devices.filter(d => d.kind === 'videoinput');
-        if (!videoInputs.length) throw new Error("Aucune caméra trouvée");
+        zxingReader = new ZXing.BrowserMultiFormatReader();
 
-        // Caméra arrière en priorité (téléphone), sinon la première
-        const back = videoInputs.find(d => /back|rear|environment/i.test(d.label));
-        const deviceId = (back || videoInputs[0]).deviceId;
+        // On limite la détection au Code 128 pour rapidité et fiabilité
+        const hints = new Map();
+        hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [ZXing.BarcodeFormat.CODE_128]);
 
-        // On limite la détection au Code 128 pour plus de rapidité et de fiabilité
-        zxingControls = new ZXing.CameraVideoControls(video, deviceId);
-        zxingControls.decodeFromVideoDevice(deviceId, video, (result, err) => {
-            if (result) {
-                const clean = (result.getText() || '').replace(/[^a-zA-Z0-9]/g, '');
-                if (clean) {
-                    closeCamera();
-                    document.getElementById('scan-input').value = clean;
-                    document.getElementById('pass-input').focus();
+        // decodeFromConstraints ouvre la caméra automatiquement (arrière en priorité)
+        await zxingReader.decodeFromConstraints(
+            { video: { facingMode: { ideal: 'environment' } } },
+            video,
+            (result, err) => {
+                if (result) {
+                    const clean = (result.getText() || '').replace(/[^a-zA-Z0-9]/g, '');
+                    if (clean) {
+                        closeCamera();
+                        document.getElementById('scan-input').value = clean;
+                        document.getElementById('pass-input').focus();
+                    }
                 }
-            }
-            // les erreurs "pas encore de code détecté" sont ignorées volontairement
-        }, { formats: [ZXing.BarcodeFormat.CODE_128] });
+                // les erreurs "pas encore de code détecté" sont ignorées volontairement
+            },
+            hints
+        );
 
         status.textContent = "🔍 Cadrez le code-barres...";
     } catch (err) {
@@ -176,12 +176,11 @@ async function openCamera() {
 }
 
 function closeCamera() {
-    if (zxingControls) { zxingControls.stop(); zxingControls = null; }
-    if (camStream) { camStream.getTracks().forEach(t => t.stop()); camStream = null; }
+    if (zxingReader) { zxingReader.stop(); zxingReader = null; }
     document.getElementById('cam-modal').style.display = 'none';
 }
 
-// Mode par défaut : ouvrir la caméra automatiquement au chargement
+// Ouverture auto au chargement (peut être bloquée par le navigateur sans clic)
 window.addEventListener('load', () => {
     setTimeout(openCamera, 400);
 });
