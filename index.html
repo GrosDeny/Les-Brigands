@@ -143,13 +143,13 @@ async function openCamera() {
     status.textContent = "Initialisation de la caméra...";
 
     try {
-        zxingReader = new ZXing.BrowserMultiFormatReader();
-
-        // On limite la détection au Code 128 pour rapidité et fiabilité
+        // Hints passés AU CONSTRUCTEUR (et non à decodeFromConstraints)
         const hints = new Map();
-        hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [ZXing.BarcodeFormat.CODE_128]);
+        hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
+        zxingReader = new ZXing.BrowserMultiFormatReader(hints);
 
-        // decodeFromConstraints ouvre la caméra automatiquement (arrière en priorité)
+        // On laisse ZXing tester tous les formats (dont Code 128) pour la fiabilité.
+        // decodeFromConstraints ouvre la caméra automatiquement (arrière en priorité).
         await zxingReader.decodeFromConstraints(
             { video: { facingMode: { ideal: 'environment' } } },
             video,
@@ -163,8 +163,7 @@ async function openCamera() {
                     }
                 }
                 // les erreurs "pas encore de code détecté" sont ignorées volontairement
-            },
-            hints
+            }
         );
 
         status.textContent = "🔍 Cadrez le code-barres...";
