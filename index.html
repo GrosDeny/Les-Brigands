@@ -28,14 +28,20 @@
         .hidden { display:none!important; }
         .post-img { width:100%; border-radius:6px; }
         .quote { font-style:italic; border-left:4px solid var(--accent); padding:12px; background:#f9f9f9; border-radius:0 6px 6px 0; }
+        /* ===== MODAL CAMÉRA ===== */
+        #cam-modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,.92); z-index:2000; flex-direction:column; justify-content:center; align-items:center; padding:20px; }
+        #cam-video { width:100%; max-width:480px; border-radius:12px; background:#000; transform:scaleX(1); }
+        #cam-status { color:#fff; margin:14px 0; font-size:1rem; text-align:center; max-width:480px; }
+        .cam-btns { display:flex; gap:12px; flex-wrap:wrap; justify-content:center; }
     </style>
 </head>
 <body>
 
 <!-- ====== ÉCRAN DE CONNEXION ====== -->
 <div class="box" id="login-screen">
-    <div class="alive" id="alive-msg">✅ Code JavaScript actif (mode sans CDN)</div>
+    <div class="alive" id="alive-msg">✅ Système actif</div>
     <h2>Connexion</h2>
+    <button class="btn b-gry" style="width:100%;margin-bottom:12px" onclick="openCamera()">📷 Scanner mon badge</button>
     <div class="grp">
         <label>Identifiant</label>
         <input type="text" id="scan-input" placeholder="Tapez votre ID (ex: admin)" autocomplete="off">
@@ -56,19 +62,27 @@
     </div>
 </div>
 
+<!-- ====== MODAL CAMÉRA ====== -->
+<div id="cam-modal">
+    <video id="cam-video" playsinline muted></video>
+    <div id="cam-status">Initialisation de la caméra...</div>
+    <div class="cam-btns">
+        <button class="btn b-gry" onclick="closeCamera()">⌨️ Saisir manuellement</button>
+    </div>
+</div>
+
 <!-- ====== CONTENEUR APPLICATION ====== -->
 <div id="app"></div>
 
 <script>
 // ============================================================
-//  CONFIGURATION SUPABASE (API REST, aucune librairie requise)
+//  CONFIGURATION SUPABASE (API REST, aucune librairie)
 // ============================================================
 const SUPABASE_URL = 'https://vblkojfwnemmkadqkpzl.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZibGtvamZ3bmVtbWthZHFrcHpsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA5MjkyNDIsImV4cCI6MjEwNjUwNTI0Mn0.VPAKcJhwjbG3QBj7ZHBtR45TV3eAfl4nsa3wXnoBYto';
 
 let currentUser = null;
 
-// Couche d'accès à la base via l'API REST (PostgREST)
 async function db(table, params = '', options = {}) {
     const url = `${SUPABASE_URL}/rest/v1/${table}${params}`;
     const res = await fetch(url, {
@@ -81,10 +95,7 @@ async function db(table, params = '', options = {}) {
         },
         body: options.body ? JSON.stringify(options.body) : undefined
     });
-    if (!res.ok) {
-        const txt = await res.text();
-        throw new Error(`HTTP ${res.status}: ${txt}`);
-    }
+    if (!res.ok) { const txt = await res.text(); throw new Error(`HTTP ${res.status}: ${txt}`); }
     if (options.method === 'DELETE') return true;
     const text = await res.text();
     return text ? JSON.parse(text) : null;
@@ -93,10 +104,7 @@ async function db(table, params = '', options = {}) {
 // ============================================================
 //  DIAGNOSTIC
 // ============================================================
-function setDiag(id, txt, cls) {
-    const el = document.getElementById(id);
-    if (el) { el.innerHTML = txt; el.className = cls || ''; }
-}
+function setDiag(id, txt, cls) { const el = document.getElementById(id); if (el) { el.innerHTML = txt; el.className = cls || ''; } }
 
 async function runDiagnostic() {
     setDiag('d-db', '• Base de données : test en cours...', '');
@@ -108,14 +116,79 @@ async function runDiagnostic() {
         else setDiag('d-admin', '• Compte admin : <span class="ko">ABSENT — créez-le en SQL</span>', 'ko');
     } catch (err) {
         setDiag('d-db', '• Base de données : <span class="ko">' + err.message + '</span>', 'ko');
-        setDiag('d-admin', '• Compte admin : en attente', '');
-        if (err.message.includes('401') || err.message.includes('403')) {
-            setDiag('d-admin', '• ⚠️ Désactivez RLS sur vos tables dans Supabase', 'ko');
-        }
+        if (err.message.includes('401') || err.message.includes('403')) setDiag('d-admin', '• ⚠️ Désactivez RLS sur vos tables', 'ko');
     }
 }
 runDiagnostic();
-document.getElementById('scan-input').focus();
+
+// ============================================================
+//  SCAN CAMÉRA NATIF (BarcodeDetector, sans librairie)
+// ============================================================
+let camStream = null;
+let camLoop = null;
+let detector = null;
+
+function cameraSupported() { return ('BarcodeDetector' in window); }
+
+async function openCamera() {
+    document.getElementById('cam-modal').style.display = 'flex';
+    const status = document.getElementById('cam-status');
+    const video = document.getElementById('cam-video');
+
+    if (!cameraSupported()) {
+        status.innerHTML = "⚠️ Ce navigateur ne supporte pas le scan de code-barres.<br>Utilisez la saisie manuelle.";
+        setTimeout(closeCamera, 2500);
+        document.getElementById('scan-input').focus();
+        return;
+    }
+
+    try {
+        status.textContent = "Demande d'accès à la caméra...";
+        camStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+        video.srcObject = camStream;
+        await video.play();
+        status.textContent = "🔍 Cadrez le code-barres...";
+
+        const formats = await BarcodeDetector.getSupportedFormats();
+        detector = new BarcodeDetector({ formats });
+
+        const tick = async () => {
+            if (!camStream) return;
+            try {
+                const codes = await detector.detect(video);
+                if (codes.length > 0) {
+                    const raw = codes[0].rawValue || '';
+                    const clean = raw.replace(/[^a-zA-Z0-9]/g, '');
+                    if (clean) {
+                        closeCamera();
+                        document.getElementById('scan-input').value = clean;
+                        // Connexion automatique : on attend juste le mot de passe
+                        document.getElementById('pass-input').focus();
+                        return;
+                    }
+                }
+            } catch (e) { /* ignore frame errors */ }
+            camLoop = requestAnimationFrame(tick);
+        };
+        tick();
+    } catch (err) {
+        status.innerHTML = "❌ Caméra indisponible : " + err.message + "<br>Utilisez la saisie manuelle.";
+        setTimeout(closeCamera, 2500);
+        document.getElementById('scan-input').focus();
+    }
+}
+
+function closeCamera() {
+    if (camLoop) { cancelAnimationFrame(camLoop); camLoop = null; }
+    if (camStream) { camStream.getTracks().forEach(t => t.stop()); camStream = null; }
+    document.getElementById('cam-modal').style.display = 'none';
+}
+
+// Mode par défaut : ouvrir la caméra automatiquement au chargement
+window.addEventListener('load', () => {
+    // Petit délai pour que la page soit visible avant la demande caméra
+    setTimeout(openCamera, 400);
+});
 
 // ============================================================
 //  CONNEXION
@@ -177,10 +250,8 @@ async function loadAdminData() {
 async function addUser() {
     const id=document.getElementById('nu-id').value, name=document.getElementById('nu-name').value, pass=document.getElementById('nu-pass').value;
     if(!id||!name||!pass) return alert('Champs requis');
-    try {
-        await db('users', '', {method:'POST', body:{id,name,password:pass,role:'user'}, prefer:'return=minimal'});
-        alert('Ajouté !'); loadAdminData();
-    } catch(e) { alert('Erreur: '+e.message); }
+    try { await db('users', '', {method:'POST', body:{id,name,password:pass,role:'user'}, prefer:'return=minimal'}); alert('Ajouté !'); loadAdminData(); }
+    catch(e) { alert('Erreur: '+e.message); }
 }
 async function delUser(id) { if(confirm('Supprimer ?')){ await db('users', `?id=eq.${id}`, {method:'DELETE'}); loadAdminData(); } }
 async function delPost(id) { if(confirm('Supprimer ?')){ await db('posts', `?id=eq.${id}`, {method:'DELETE'}); loadAdminData(); } }
@@ -206,14 +277,14 @@ function renderUser() {
             <div id="pf"><input type="file" id="p-file"></div>
             <div id="pq" class="hidden">
                 <textarea id="p-text" style="width:100%" placeholder="Citation..."></textarea>
-                <input id="p-cited" placeholder="ID cité (optionnel)" style="margin-top:8px">
+                <label style="margin-top:10px">ID de la personne citée <span style="color:var(--accent)">(obligatoire)</span></label>
+                <input id="p-cited" placeholder="ID d'un membre inscrit (ex: admin)">
             </div>
             <button class="btn b-grn" style="margin-top:10px;width:100%" onclick="submitPost()">Publier</button></div>
         <div id="feed" class="grid" style="margin-top:15px"></div>`;
     renderFeed();
 }
 
-// CORRECTIF : bascule par classe (et non style.display) pour respecter le CSS .hidden
 function togglePubFields() {
     const isPhoto = document.getElementById('pt').value === 'photo';
     document.getElementById('pf').classList.toggle('hidden', !isPhoto);
@@ -229,14 +300,14 @@ async function submitPost() {
         content = await uploadFile(f);
         if(!content) return;
     } else {
-        content = document.getElementById('p-text').value;
+        content = document.getElementById('p-text').value.trim();
         const c = document.getElementById('p-cited').value.trim();
-        if(!content) return alert('Texte requis');
-        if(c){
-            const u = await db('users', `?id=eq.${c}&select=name`);
-            if(!u||!u.length) return alert('ID cité inexistant');
-            citedId=c; citedName=u[0].name;
-        }
+        if(!content) return alert('Le texte de la citation est requis.');
+        // CORRECTIF : ID cité désormais OBLIGATOIRE
+        if(!c) return alert("L'ID de la personne citée est obligatoire.");
+        const u = await db('users', `?id=eq.${encodeURIComponent(c)}&select=name`);
+        if(!u||!u.length) return alert("L'ID cité n'existe pas. Vous ne pouvez citer qu'un membre inscrit.");
+        citedId=c; citedName=u[0].name;
     }
     try {
         await db('posts', '', {method:'POST', body:{author_id:currentUser.id,author_name:currentUser.name,type,content,cited_id:citedId,cited_name:citedName}, prefer:'return=minimal'});
@@ -246,7 +317,6 @@ async function submitPost() {
     } catch(e) { alert('Erreur: '+e.message); }
 }
 
-// Upload image via l'API Storage REST (multipart)
 async function uploadFile(file) {
     const fn = 'post_' + Date.now() + '_' + file.name.replace(/[^a-zA-Z0-9.]/g,'_');
     const fd = new FormData(); fd.append('file', file);
